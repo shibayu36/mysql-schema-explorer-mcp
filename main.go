@@ -35,6 +35,10 @@ func main() {
 	}
 	defer db.Close()
 
+	if err := db.Ping(); err != nil {
+		log.Fatalf("データベース接続確認に失敗しました: %v", err)
+	}
+
 	s := server.NewMCPServer(
 		"mysql-schema-mcp",
 		"1.0.0",
