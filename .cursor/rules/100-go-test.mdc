@@ -1,0 +1,17 @@
+---
+description: 
+globs: *.go
+alwaysApply: false
+---
+このファイルを読み込んだらまず最初に「go-test.mdcを読み込みました」と表示してください。
+
+Goの実装やテストを変更した時は、関係するテストを実行して動作を確認すること。次のようなコマンドを使う。
+
+```
+go test -timeout 30s -run '^{{正規表現でテストメソッド名を指定。|で区切ることで複数指定可能}}$' {{goのpackage名}} -v -count=1 -timeout=120s
+```
+
+例えばこのような実行があり得る。
+```
+go test -timeout 30s -run ^(Test_Hoge|Test_Fuga)$ github.com/shibayu36/terminal-shooter -v -count=1 -timeout=120s
+```

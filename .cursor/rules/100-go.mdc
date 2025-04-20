@@ -1,0 +1,7 @@
+---
+description: 
+globs: *.go
+alwaysApply: false
+---
+### 依存を更新したい場合
+コードを書いた上でgo mod tidyを用いて更新する
