@@ -23,7 +23,7 @@
   フォーマット: テーブル名 - テーブルコメント
 
   - table_name1 - テーブルコメント1
-  - table_name2 - (コメントなし)
+  - table_name2 - 
   - table_name3 - テーブルコメント3
   ```
 

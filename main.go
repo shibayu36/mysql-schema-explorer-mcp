@@ -132,11 +132,7 @@ func listTablesHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.C
 
 	// テーブルリスト
 	for _, table := range tables {
-		comment := table.Comment
-		if comment == "" {
-			comment = "(コメントなし)"
-		}
-		sb.WriteString(fmt.Sprintf("- %s - %s\n", table.Name, comment))
+		sb.WriteString(fmt.Sprintf("- %s - %s\n", table.Name, table.Comment))
 	}
 
 	return mcp.NewToolResultText(sb.String()), nil
