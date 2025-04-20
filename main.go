@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -10,23 +9,17 @@ import (
 )
 
 func main() {
-	// Create MCP server
 	s := server.NewMCPServer(
-		"Demo 🚀",
+		"mysql-schema-mcp",
 		"1.0.0",
 	)
 
-	// Add tool
-	tool := mcp.NewTool("hello_world",
-		mcp.WithDescription("Say hello to someone"),
-		mcp.WithString("name",
-			mcp.Required(),
-			mcp.Description("Name of the person to greet"),
-		),
+	listTables := mcp.NewTool(
+		"list_tables",
+		mcp.WithDescription("MySQLのデータベース内のテーブル情報を一覧で返す"),
 	)
 
-	// Add tool handler
-	s.AddTool(tool, helloHandler)
+	s.AddTool(listTables, listTablesHandler)
 
 	// Start the stdio server
 	if err := server.ServeStdio(s); err != nil {
@@ -34,11 +27,6 @@ func main() {
 	}
 }
 
-func helloHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	name, ok := request.Params.Arguments["name"].(string)
-	if !ok {
-		return nil, errors.New("name must be a string")
-	}
-
-	return mcp.NewToolResultText(fmt.Sprintf("Hello, %s!", name)), nil
+func listTablesHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	return mcp.NewToolResultText("tables"), nil
 }
