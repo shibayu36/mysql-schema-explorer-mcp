@@ -19,7 +19,6 @@ type DBConfig struct {
 	Port     string
 	User     string
 	Password string
-	DBName   string
 }
 
 // TableInfo はテーブル情報を保持する構造体
@@ -87,6 +86,10 @@ func main() {
 	listTables := mcp.NewTool(
 		"list_tables",
 		mcp.WithDescription("MySQLのデータベース内のテーブル情報を一覧で返す"),
+		mcp.WithString("dbName",
+			mcp.Required(),
+			mcp.Description("情報を取得するデータベース名"),
+		),
 	)
 
 	s.AddTool(listTables, listTablesHandler)
@@ -94,6 +97,10 @@ func main() {
 	describeTables := mcp.NewTool(
 		"describe_tables",
 		mcp.WithDescription("指定されたテーブルの詳細情報を返す"),
+		mcp.WithString("dbName",
+			mcp.Required(),
+			mcp.Description("情報を取得するデータベース名"),
+		),
 		mcp.WithArray(
 			"tableNames",
 			mcp.Items(
@@ -131,23 +138,18 @@ func loadDBConfig() (DBConfig, error) {
 
 	password := os.Getenv("DB_PASSWORD")
 
-	dbName := os.Getenv("DB_NAME")
-	if dbName == "" {
-		return DBConfig{}, fmt.Errorf("DB_NAME環境変数が設定されていません")
-	}
-
 	return DBConfig{
 		Host:     host,
 		Port:     port,
 		User:     user,
 		Password: password,
-		DBName:   dbName,
 	}, nil
 }
 
 func connectDB(config DBConfig) (*sql.DB, error) {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s",
-		config.User, config.Password, config.Host, config.Port, config.DBName)
+	// データベース名を指定せずに接続（各ツール実行時にデータベースを指定する）
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/",
+		config.User, config.Password, config.Host, config.Port)
 
 	conn, err := sql.Open("mysql", dsn)
 	if err != nil {
@@ -158,8 +160,19 @@ func connectDB(config DBConfig) (*sql.DB, error) {
 }
 
 func listTablesHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	// dbNameパラメータを取得
+	dbNameRaw, ok := request.Params.Arguments["dbName"]
+	if !ok {
+		return mcp.NewToolResultError("データベース名が指定されていません"), nil
+	}
+
+	dbName, ok := dbNameRaw.(string)
+	if !ok || dbName == "" {
+		return mcp.NewToolResultError("データベース名が正しく指定されていません"), nil
+	}
+
 	// テーブル情報の取得
-	tables, err := fetchTablesWithAllInfo(ctx)
+	tables, err := fetchTablesWithAllInfo(ctx, dbName)
 	if err != nil {
 		// エラーが発生した場合は適切なエラーメッセージを返す
 		return mcp.NewToolResultError(fmt.Sprintf("テーブル情報の取得に失敗しました: %v", err)), nil
@@ -169,9 +182,6 @@ func listTablesHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.C
 	if len(tables) == 0 {
 		return mcp.NewToolResultText("データベース内にテーブルが存在しません。"), nil
 	}
-
-	// データベース名
-	dbName := os.Getenv("DB_NAME")
 
 	// フォーマット済みのテキスト出力を構築
 	var sb strings.Builder
@@ -243,15 +253,14 @@ func listTablesHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.C
 }
 
 // fetchTablesWithAllInfo はテーブル名、コメント、および全てのキー情報を取得する関数
-func fetchTablesWithAllInfo(ctx context.Context) ([]TableInfo, error) {
+func fetchTablesWithAllInfo(ctx context.Context, dbName string) ([]TableInfo, error) {
 	// 基本的なテーブル情報を取得
-	tables, err := fetchTablesWithComments(ctx)
+	tables, err := fetchTablesWithComments(ctx, dbName)
 	if err != nil {
 		return nil, err
 	}
 
 	// 各テーブルの追加情報を取得
-	dbName := os.Getenv("DB_NAME")
 	for i := range tables {
 		// 主キー情報を取得
 		tables[i].PK, err = fetchPrimaryKeys(ctx, dbName, tables[i].Name)
@@ -276,7 +285,7 @@ func fetchTablesWithAllInfo(ctx context.Context) ([]TableInfo, error) {
 }
 
 // fetchTablesWithComments はテーブル名とコメントを取得する関数
-func fetchTablesWithComments(ctx context.Context) ([]TableInfo, error) {
+func fetchTablesWithComments(ctx context.Context, dbName string) ([]TableInfo, error) {
 	query := `
 		SELECT 
 			TABLE_NAME, 
@@ -289,7 +298,7 @@ func fetchTablesWithComments(ctx context.Context) ([]TableInfo, error) {
 			TABLE_NAME
 	`
 
-	rows, err := db.QueryContext(ctx, query, os.Getenv("DB_NAME"))
+	rows, err := db.QueryContext(ctx, query, dbName)
 	if err != nil {
 		return nil, err
 	}
@@ -465,6 +474,17 @@ func fetchForeignKeys(ctx context.Context, dbName string, tableName string) ([]F
 
 // describeTablesHandler は指定されたテーブルの詳細情報を返すハンドラー
 func describeTablesHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	// dbNameパラメータを取得
+	dbNameRaw, ok := request.Params.Arguments["dbName"]
+	if !ok {
+		return mcp.NewToolResultError("データベース名が指定されていません"), nil
+	}
+
+	dbName, ok := dbNameRaw.(string)
+	if !ok || dbName == "" {
+		return mcp.NewToolResultError("データベース名が正しく指定されていません"), nil
+	}
+
 	// リクエストからテーブル名の配列を取得
 	tableNamesRaw, ok := request.Params.Arguments["tableNames"]
 	if !ok {
@@ -489,7 +509,6 @@ func describeTablesHandler(ctx context.Context, request mcp.CallToolRequest) (*m
 		return mcp.NewToolResultError("有効なテーブル名が指定されていません"), nil
 	}
 
-	dbName := os.Getenv("DB_NAME")
 	var sb strings.Builder
 
 	// すべてのテーブルに対して情報を取得
@@ -500,7 +519,7 @@ func describeTablesHandler(ctx context.Context, request mcp.CallToolRequest) (*m
 		}
 
 		// テーブル情報の取得
-		tables, err := fetchTablesWithComments(ctx)
+		tables, err := fetchTablesWithComments(ctx, dbName)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("テーブル情報の取得に失敗しました: %v", err)), nil
 		}
