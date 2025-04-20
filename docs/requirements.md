@@ -20,11 +20,13 @@
 - 出力フォーマット:
   ```
   データベース「DB_NAME」のテーブル一覧 (全X件)
-  フォーマット: テーブル名 - テーブルコメント [PK: 主キー] [UK: 一意キー1, 一意キー2...] [FK: 外部キー -> 参照先テーブル.カラム, ...]
-
-  - users - ユーザー情報 [PK: id] [UK: email, username] [FK: role_id -> roles.id, department_id -> departments.id]
-  - posts - 投稿情報 [PK: id] [UK: slug] [FK: user_id -> users.id, category_id -> categories.id]
-  - comments - コメント [PK: id] [FK: post_id -> posts.id, user_id -> users.id]
+  フォーマット: テーブル名 - テーブルコメント [PK: 主キー] [UK: 一意キー1; 一意キー2...] [FK: 外部キー -> 参照先テーブル.カラム; ...]
+  ※ 複合キー（複数カラムで構成されるキー）は括弧でグループ化: (col1, col2)
+  ※ 複数の異なるキー制約はセミコロンで区切り: key1; key2
+  
+  - users - ユーザー情報 [PK: id] [UK: email; username] [FK: role_id -> roles.id; department_id -> departments.id]
+  - posts - 投稿情報 [PK: id] [UK: slug] [FK: user_id -> users.id; category_id -> categories.id]
+  - order_items - 注文商品 [PK: (order_id, item_id)] [FK: (order_id, item_id) -> orders.(id, item_id); product_id -> products.id]
   ```
 
 2. **テーブル詳細を取得**
