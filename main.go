@@ -45,6 +45,22 @@ type ForeignKey struct {
 	RefColumns []string
 }
 
+// ColumnInfo はカラム情報を保持する構造体
+type ColumnInfo struct {
+	Name       string
+	Type       string
+	IsNullable string
+	Default    sql.NullString
+	Comment    string
+}
+
+// IndexInfo はインデックス情報を保持する構造体
+type IndexInfo struct {
+	Name    string
+	Columns []string
+	Unique  bool
+}
+
 var db *sql.DB
 
 func main() {
@@ -74,6 +90,18 @@ func main() {
 	)
 
 	s.AddTool(listTables, listTablesHandler)
+
+	describeTable := mcp.NewTool(
+		"describe_table",
+		mcp.WithDescription("指定されたテーブルの詳細情報を返す"),
+		mcp.WithString(
+			"tableName",
+			mcp.Required(),
+			mcp.Description("詳細情報を取得するテーブル名"),
+		),
+	)
+
+	s.AddTool(describeTable, describeTableHandler)
 
 	if err := server.ServeStdio(s); err != nil {
 		fmt.Printf("Server error: %v\n", err)
@@ -428,4 +456,264 @@ func fetchForeignKeys(ctx context.Context, dbName string, tableName string) ([]F
 	}
 
 	return foreignKeys, nil
+}
+
+// describeTableHandler は指定されたテーブルの詳細情報を返すハンドラー
+func describeTableHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	// リクエストからテーブル名を取得
+	tableName, ok := request.Params.Arguments["tableName"].(string)
+	if !ok || tableName == "" {
+		return mcp.NewToolResultError("テーブル名が指定されていません"), nil
+	}
+
+	dbName := os.Getenv("DB_NAME")
+
+	// テーブル情報の取得
+	tables, err := fetchTablesWithComments(ctx)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("テーブル情報の取得に失敗しました: %v", err)), nil
+	}
+
+	// 指定されたテーブルを探す
+	var tableInfo TableInfo
+	var tableFound bool
+	for _, t := range tables {
+		if t.Name == tableName {
+			tableInfo = t
+			tableFound = true
+			break
+		}
+	}
+
+	if !tableFound {
+		return mcp.NewToolResultError(fmt.Sprintf("テーブル '%s' が見つかりません", tableName)), nil
+	}
+
+	// 主キー情報の取得
+	primaryKeys, err := fetchPrimaryKeys(ctx, dbName, tableName)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("主キー情報の取得に失敗しました: %v", err)), nil
+	}
+
+	// 一意キー情報の取得
+	uniqueKeys, err := fetchUniqueKeys(ctx, dbName, tableName)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("一意キー情報の取得に失敗しました: %v", err)), nil
+	}
+
+	// 外部キー情報の取得
+	foreignKeys, err := fetchForeignKeys(ctx, dbName, tableName)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("外部キー情報の取得に失敗しました: %v", err)), nil
+	}
+
+	// カラム情報の取得
+	columns, err := fetchTableColumns(ctx, dbName, tableName)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("カラム情報の取得に失敗しました: %v", err)), nil
+	}
+
+	// インデックス情報の取得
+	indexes, err := fetchTableIndexes(ctx, dbName, tableName)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("インデックス情報の取得に失敗しました: %v", err)), nil
+	}
+
+	// 結果の整形
+	var sb strings.Builder
+
+	// テーブル基本情報
+	sb.WriteString(fmt.Sprintf("# テーブル: %s", tableName))
+	if tableInfo.Comment != "" {
+		sb.WriteString(fmt.Sprintf(" - %s", tableInfo.Comment))
+	}
+	sb.WriteString("\n\n")
+
+	// カラム情報
+	sb.WriteString("## カラム\n")
+	for _, col := range columns {
+		nullable := "NOT NULL"
+		if col.IsNullable == "YES" {
+			nullable = "NULL"
+		}
+
+		defaultValue := ""
+		if col.Default.Valid {
+			defaultValue = fmt.Sprintf(" DEFAULT %s", col.Default.String)
+		}
+
+		comment := ""
+		if col.Comment != "" {
+			comment = fmt.Sprintf(" [%s]", col.Comment)
+		}
+
+		sb.WriteString(fmt.Sprintf("- %s: %s %s%s%s\n",
+			col.Name, col.Type, nullable, defaultValue, comment))
+	}
+	sb.WriteString("\n")
+
+	// キー情報
+	sb.WriteString("## キー情報\n")
+
+	// 主キー情報
+	if len(primaryKeys) > 0 {
+		pkStr := strings.Join(primaryKeys, ", ")
+		if len(primaryKeys) > 1 {
+			pkStr = fmt.Sprintf("(%s)", pkStr)
+		}
+		sb.WriteString(fmt.Sprintf("[PK: %s]\n", pkStr))
+	}
+
+	// 一意キー情報
+	if len(uniqueKeys) > 0 {
+		var ukInfo []string
+		for _, uk := range uniqueKeys {
+			if len(uk.Columns) > 1 {
+				ukInfo = append(ukInfo, fmt.Sprintf("(%s)", strings.Join(uk.Columns, ", ")))
+			} else {
+				ukInfo = append(ukInfo, strings.Join(uk.Columns, ", "))
+			}
+		}
+		sb.WriteString(fmt.Sprintf("[UK: %s]\n", strings.Join(ukInfo, "; ")))
+	}
+
+	// 外部キー情報
+	if len(foreignKeys) > 0 {
+		var fkInfo []string
+		for _, fk := range foreignKeys {
+			colStr := strings.Join(fk.Columns, ", ")
+			refColStr := strings.Join(fk.RefColumns, ", ")
+
+			if len(fk.Columns) > 1 {
+				colStr = fmt.Sprintf("(%s)", colStr)
+			}
+
+			if len(fk.RefColumns) > 1 {
+				refColStr = fmt.Sprintf("(%s)", refColStr)
+			}
+
+			fkInfo = append(fkInfo, fmt.Sprintf("%s -> %s.%s",
+				colStr,
+				fk.RefTable,
+				refColStr))
+		}
+		sb.WriteString(fmt.Sprintf("[FK: %s]\n", strings.Join(fkInfo, "; ")))
+	}
+
+	// インデックス情報
+	if len(indexes) > 0 {
+		var idxInfo []string
+		for _, idx := range indexes {
+			if len(idx.Columns) > 1 {
+				idxInfo = append(idxInfo, fmt.Sprintf("(%s)", strings.Join(idx.Columns, ", ")))
+			} else {
+				idxInfo = append(idxInfo, strings.Join(idx.Columns, ", "))
+			}
+		}
+		sb.WriteString(fmt.Sprintf("[INDEX: %s]\n", strings.Join(idxInfo, "; ")))
+	}
+
+	return mcp.NewToolResultText(sb.String()), nil
+}
+
+// fetchTableColumns はテーブルのカラム情報を取得する関数
+func fetchTableColumns(ctx context.Context, dbName string, tableName string) ([]ColumnInfo, error) {
+	query := `
+		SELECT 
+			COLUMN_NAME, 
+			COLUMN_TYPE, 
+			IS_NULLABLE, 
+			COLUMN_DEFAULT, 
+			IFNULL(COLUMN_COMMENT, '') AS COLUMN_COMMENT
+		FROM 
+			INFORMATION_SCHEMA.COLUMNS 
+		WHERE 
+			TABLE_SCHEMA = ? 
+			AND TABLE_NAME = ? 
+		ORDER BY 
+			ORDINAL_POSITION
+	`
+
+	rows, err := db.QueryContext(ctx, query, dbName, tableName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var columns []ColumnInfo
+	for rows.Next() {
+		var col ColumnInfo
+		if err := rows.Scan(&col.Name, &col.Type, &col.IsNullable, &col.Default, &col.Comment); err != nil {
+			return nil, err
+		}
+		columns = append(columns, col)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return columns, nil
+}
+
+// fetchTableIndexes はテーブルのインデックス情報を取得する関数
+func fetchTableIndexes(ctx context.Context, dbName string, tableName string) ([]IndexInfo, error) {
+	query := `
+		SELECT 
+			INDEX_NAME, 
+			COLUMN_NAME,
+			NON_UNIQUE 
+		FROM 
+			INFORMATION_SCHEMA.STATISTICS 
+		WHERE 
+			TABLE_SCHEMA = ? 
+			AND TABLE_NAME = ? 
+			AND INDEX_NAME != 'PRIMARY'
+			AND INDEX_NAME NOT IN (
+				SELECT CONSTRAINT_NAME 
+				FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS 
+				WHERE TABLE_SCHEMA = ? 
+				AND TABLE_NAME = ? 
+				AND CONSTRAINT_TYPE IN ('UNIQUE', 'FOREIGN KEY')
+			)
+		ORDER BY 
+			INDEX_NAME, 
+			SEQ_IN_INDEX
+	`
+
+	rows, err := db.QueryContext(ctx, query, dbName, tableName, dbName, tableName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	indexMap := make(map[string]*IndexInfo)
+	for rows.Next() {
+		var indexName, columnName string
+		var nonUnique bool
+		if err := rows.Scan(&indexName, &columnName, &nonUnique); err != nil {
+			return nil, err
+		}
+
+		idx, exists := indexMap[indexName]
+		if !exists {
+			idx = &IndexInfo{
+				Name:   indexName,
+				Unique: !nonUnique,
+			}
+			indexMap[indexName] = idx
+		}
+		idx.Columns = append(idx.Columns, columnName)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	var indexes []IndexInfo
+	for _, idx := range indexMap {
+		indexes = append(indexes, *idx)
+	}
+
+	return indexes, nil
 }
