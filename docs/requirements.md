@@ -16,15 +16,15 @@
 - `list_tables`
 - 説明: 指定されたデータベースの全テーブル名をリストとして返す
 - 引数: なし
-- 戻り値: テーブル名とテーブルコメントのリスト（テキスト形式）
+- 戻り値: テーブル名とテーブルコメント、キー情報のリスト（テキスト形式）
 - 出力フォーマット:
   ```
   データベース「DB_NAME」のテーブル一覧 (全X件)
-  フォーマット: テーブル名 - テーブルコメント
+  フォーマット: テーブル名 - テーブルコメント [PK: 主キー] [UK: 一意キー1, 一意キー2...] [FK: 外部キー -> 参照先テーブル.カラム, ...]
 
-  - table_name1 - テーブルコメント1
-  - table_name2 - 
-  - table_name3 - テーブルコメント3
+  - users - ユーザー情報 [PK: id] [UK: email, username] [FK: role_id -> roles.id, department_id -> departments.id]
+  - posts - 投稿情報 [PK: id] [UK: slug] [FK: user_id -> users.id, category_id -> categories.id]
+  - comments - コメント [PK: id] [FK: post_id -> posts.id, user_id -> users.id]
   ```
 
 2. **テーブル詳細を取得**
