@@ -1,0 +1,6 @@
+---
+description: mcp-goを使った実装を行うときに読み込む
+globs: 
+alwaysApply: false
+---
+[mcp-go-cheatsheet.md](mdc:docs/mcp-go-cheatsheet.md) に書かれた内容を参考に実装すること
