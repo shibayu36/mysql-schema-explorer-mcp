@@ -145,7 +145,9 @@ func listTablesHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.C
 
 	// ヘッダー部分
 	sb.WriteString(fmt.Sprintf("データベース「%s」のテーブル一覧 (全%d件)\n", dbName, len(tables)))
-	sb.WriteString("フォーマット: テーブル名 - テーブルコメント [PK: 主キー] [UK: 一意キー1, 一意キー2...] [FK: 外部キー -> 参照先テーブル.カラム, ...]\n\n")
+	sb.WriteString("フォーマット: テーブル名 - テーブルコメント [PK: 主キー] [UK: 一意キー1; 一意キー2...] [FK: 外部キー -> 参照先テーブル.カラム; ...]\n")
+	sb.WriteString("※ 複合キー（複数カラムで構成されるキー）は括弧でグループ化: (col1, col2)\n")
+	sb.WriteString("※ 複数の異なるキー制約はセミコロンで区切り: key1; key2\n\n")
 
 	// テーブルリスト
 	for _, table := range tables {
@@ -154,28 +156,51 @@ func listTablesHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.C
 
 		// 主キー情報
 		if len(table.PK) > 0 {
-			sb.WriteString(fmt.Sprintf(" [PK: %s]", strings.Join(table.PK, ", ")))
+			// 主キーが複数カラムの場合は括弧でグループ化
+			pkStr := strings.Join(table.PK, ", ")
+			if len(table.PK) > 1 {
+				pkStr = fmt.Sprintf("(%s)", pkStr)
+			}
+			sb.WriteString(fmt.Sprintf(" [PK: %s]", pkStr))
 		}
 
 		// 一意キー情報
 		if len(table.UK) > 0 {
 			var ukInfo []string
 			for _, uk := range table.UK {
-				ukInfo = append(ukInfo, strings.Join(uk.Columns, ", "))
+				// 複合キーの場合は括弧でグループ化
+				if len(uk.Columns) > 1 {
+					ukInfo = append(ukInfo, fmt.Sprintf("(%s)", strings.Join(uk.Columns, ", ")))
+				} else {
+					ukInfo = append(ukInfo, strings.Join(uk.Columns, ", "))
+				}
 			}
-			sb.WriteString(fmt.Sprintf(" [UK: %s]", strings.Join(ukInfo, ", ")))
+			sb.WriteString(fmt.Sprintf(" [UK: %s]", strings.Join(ukInfo, "; ")))
 		}
 
 		// 外部キー情報
 		if len(table.FK) > 0 {
 			var fkInfo []string
 			for _, fk := range table.FK {
+				// カラムとリファレンスカラムを整形
+				colStr := strings.Join(fk.Columns, ", ")
+				refColStr := strings.Join(fk.RefColumns, ", ")
+
+				// 複合キーの場合は括弧でグループ化
+				if len(fk.Columns) > 1 {
+					colStr = fmt.Sprintf("(%s)", colStr)
+				}
+
+				if len(fk.RefColumns) > 1 {
+					refColStr = fmt.Sprintf("(%s)", refColStr)
+				}
+
 				fkInfo = append(fkInfo, fmt.Sprintf("%s -> %s.%s",
-					strings.Join(fk.Columns, ", "),
+					colStr,
 					fk.RefTable,
-					strings.Join(fk.RefColumns, ", ")))
+					refColStr))
 			}
-			sb.WriteString(fmt.Sprintf(" [FK: %s]", strings.Join(fkInfo, ", ")))
+			sb.WriteString(fmt.Sprintf(" [FK: %s]", strings.Join(fkInfo, "; ")))
 		}
 
 		sb.WriteString("\n")
