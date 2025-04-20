@@ -30,10 +30,10 @@
   ```
 
 2. **テーブル詳細を取得**
-- `describe_table`
+- `describe_tables`
 - 説明: 指定されたテーブルのカラム情報、インデックス、外部キー制約などの詳細情報を返す
-- 引数: tableName（string）- 詳細情報を取得するテーブル名
-- 戻り値: テーブルの詳細情報を整形したテキスト
+- 引数: tableNames（string配列）- 詳細情報を取得するテーブル名（複数指定可能）
+- 戻り値: 各テーブルの詳細情報を整形したテキスト
 - 出力フォーマット:
   ```
   # テーブル: order_items - 注文商品
@@ -51,7 +51,25 @@
   [UK: (user_id, product_id)]
   [FK: (order_id, item_id) -> orders.(id, item_id); product_id -> products.id; user_id -> users.id]
   [INDEX: price; quantity]
+
+  ---
+
+  # テーブル: users - ユーザー情報
+
+  ## カラム
+  - id: int(11) NOT NULL [ユーザーID]
+  - username: varchar(50) NOT NULL [ユーザー名]
+  - email: varchar(100) NOT NULL [メールアドレス]
+  - password: varchar(255) NOT NULL [パスワード]
+  - created_at: timestamp NULL DEFAULT CURRENT_TIMESTAMP [作成日時]
+
+  ## キー情報
+  [PK: id]
+  [UK: email; username]
+  [INDEX: created_at]
   ```
+
+  複数のテーブルを指定した場合、各テーブル情報の間に区切り線（`---`）が挿入されます。
 
 ## 実装の流れ
 
@@ -82,5 +100,5 @@
 - [x] 環境変数の読み込み
 - [x] データベース接続ヘルパーの実装
 - [x] `list_tables`ツールの実装
-- [ ] `describe_table`ツールの実装
+- [x] `describe_tables`ツールの実装
 - [ ] サーバーの動作テスト
