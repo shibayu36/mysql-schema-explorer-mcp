@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -19,6 +20,12 @@ type DBConfig struct {
 	User     string
 	Password string
 	DBName   string
+}
+
+// TableInfo はテーブル情報を保持する構造体
+type TableInfo struct {
+	Name    string
+	Comment string
 }
 
 var db *sql.DB
@@ -101,5 +108,72 @@ func connectDB(config DBConfig) (*sql.DB, error) {
 }
 
 func listTablesHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	return mcp.NewToolResultText("tables"), nil
+	// テーブル情報の取得
+	tables, err := fetchTablesWithComments(ctx)
+	if err != nil {
+		// エラーが発生した場合は適切なエラーメッセージを返す
+		return mcp.NewToolResultError(fmt.Sprintf("テーブル情報の取得に失敗しました: %v", err)), nil
+	}
+
+	// テーブルが見つからない場合
+	if len(tables) == 0 {
+		return mcp.NewToolResultText("データベース内にテーブルが存在しません。"), nil
+	}
+
+	// データベース名
+	dbName := os.Getenv("DB_NAME")
+
+	// フォーマット済みのテキスト出力を構築
+	var sb strings.Builder
+
+	// ヘッダー部分
+	sb.WriteString(fmt.Sprintf("データベース「%s」のテーブル一覧 (全%d件)\n", dbName, len(tables)))
+	sb.WriteString("フォーマット: テーブル名 - テーブルコメント\n\n")
+
+	// テーブルリスト
+	for _, table := range tables {
+		comment := table.Comment
+		if comment == "" {
+			comment = "(コメントなし)"
+		}
+		sb.WriteString(fmt.Sprintf("- %s - %s\n", table.Name, comment))
+	}
+
+	return mcp.NewToolResultText(sb.String()), nil
+}
+
+// fetchTablesWithComments はテーブル名とコメントを取得する関数
+func fetchTablesWithComments(ctx context.Context) ([]TableInfo, error) {
+	query := `
+		SELECT 
+			TABLE_NAME, 
+			IFNULL(TABLE_COMMENT, '') AS TABLE_COMMENT 
+		FROM 
+			INFORMATION_SCHEMA.TABLES 
+		WHERE 
+			TABLE_SCHEMA = ? 
+		ORDER BY 
+			TABLE_NAME
+	`
+
+	rows, err := db.QueryContext(ctx, query, os.Getenv("DB_NAME"))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tables []TableInfo
+	for rows.Next() {
+		var table TableInfo
+		if err := rows.Scan(&table.Name, &table.Comment); err != nil {
+			return nil, err
+		}
+		tables = append(tables, table)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return tables, nil
 }
