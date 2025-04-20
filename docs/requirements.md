@@ -34,6 +34,24 @@
 - 説明: 指定されたテーブルのカラム情報、インデックス、外部キー制約などの詳細情報を返す
 - 引数: tableName（string）- 詳細情報を取得するテーブル名
 - 戻り値: テーブルの詳細情報を整形したテキスト
+- 出力フォーマット:
+  ```
+  # テーブル: order_items - 注文商品
+
+  ## カラム
+  - order_id: int(11) NOT NULL [注文ID]
+  - item_id: int(11) NOT NULL [商品ID]
+  - product_id: int(11) NOT NULL [製品ID]
+  - quantity: int(11) NOT NULL [数量]
+  - price: decimal(10,2) NOT NULL [価格]
+  - user_id: int(11) NOT NULL [ユーザーID]
+
+  ## キー情報
+  [PK: (order_id, item_id)]
+  [UK: (user_id, product_id)]
+  [FK: (order_id, item_id) -> orders.(id, item_id); product_id -> products.id; user_id -> users.id]
+  [INDEX: price; quantity]
+  ```
 
 ## 実装の流れ
 
