@@ -16,15 +16,19 @@ func main() {
 		log.Fatalf("設定の読み込みに失敗しました: %v", err)
 	}
 
-	db, err = connectDB(dbConfig)
+	sqlDB, err := connectDB(dbConfig)
 	if err != nil {
 		log.Fatalf("データベース接続に失敗しました: %v", err)
 	}
-	defer db.Close()
+	defer sqlDB.Close()
 
-	if err := db.Ping(); err != nil {
+	if err := sqlDB.Ping(); err != nil {
 		log.Fatalf("データベース接続確認に失敗しました: %v", err)
 	}
+
+	// DB操作層とハンドラーの初期化
+	db := NewDB(sqlDB)
+	handler := NewHandler(db)
 
 	s := server.NewMCPServer(
 		"mysql-schema-mcp",
@@ -40,7 +44,7 @@ func main() {
 		),
 	)
 
-	s.AddTool(listTables, listTablesHandler)
+	s.AddTool(listTables, handler.ListTables)
 
 	describeTables := mcp.NewTool(
 		"describe_tables",
@@ -61,7 +65,7 @@ func main() {
 		),
 	)
 
-	s.AddTool(describeTables, describeTablesHandler)
+	s.AddTool(describeTables, handler.DescribeTables)
 
 	if err := server.ServeStdio(s); err != nil {
 		fmt.Printf("Server error: %v\n", err)

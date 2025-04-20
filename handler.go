@@ -8,8 +8,18 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
-// listTablesHandler は全てのテーブル情報を返すハンドラー
-func listTablesHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+// Handler はMCPハンドラーを実装する構造体
+type Handler struct {
+	db *DB
+}
+
+// NewHandler はHandler構造体のインスタンスを作成する
+func NewHandler(db *DB) *Handler {
+	return &Handler{db: db}
+}
+
+// ListTables は全てのテーブル情報を返すハンドラーメソッド
+func (h *Handler) ListTables(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	// dbNameパラメータを取得
 	dbNameRaw, ok := request.Params.Arguments["dbName"]
 	if !ok {
@@ -22,7 +32,7 @@ func listTablesHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.C
 	}
 
 	// テーブル情報の取得
-	tables, err := fetchTablesWithAllInfo(ctx, dbName)
+	tables, err := h.db.FetchTablesWithAllInfo(ctx, dbName)
 	if err != nil {
 		// エラーが発生した場合は適切なエラーメッセージを返す
 		return mcp.NewToolResultError(fmt.Sprintf("テーブル情報の取得に失敗しました: %v", err)), nil
@@ -102,8 +112,8 @@ func listTablesHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.C
 	return mcp.NewToolResultText(sb.String()), nil
 }
 
-// describeTablesHandler は指定されたテーブルの詳細情報を返すハンドラー
-func describeTablesHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+// DescribeTables は指定されたテーブルの詳細情報を返すハンドラーメソッド
+func (h *Handler) DescribeTables(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	// dbNameパラメータを取得
 	dbNameRaw, ok := request.Params.Arguments["dbName"]
 	if !ok {
@@ -149,7 +159,7 @@ func describeTablesHandler(ctx context.Context, request mcp.CallToolRequest) (*m
 		}
 
 		// テーブル情報の取得
-		tables, err := fetchTablesWithComments(ctx, dbName)
+		tables, err := h.db.FetchTablesWithComments(ctx, dbName)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("テーブル情報の取得に失敗しました: %v", err)), nil
 		}
@@ -171,31 +181,31 @@ func describeTablesHandler(ctx context.Context, request mcp.CallToolRequest) (*m
 		}
 
 		// 主キー情報の取得
-		primaryKeys, err := fetchPrimaryKeys(ctx, dbName, tableName)
+		primaryKeys, err := h.db.FetchPrimaryKeys(ctx, dbName, tableName)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("主キー情報の取得に失敗しました: %v", err)), nil
 		}
 
 		// 一意キー情報の取得
-		uniqueKeys, err := fetchUniqueKeys(ctx, dbName, tableName)
+		uniqueKeys, err := h.db.FetchUniqueKeys(ctx, dbName, tableName)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("一意キー情報の取得に失敗しました: %v", err)), nil
 		}
 
 		// 外部キー情報の取得
-		foreignKeys, err := fetchForeignKeys(ctx, dbName, tableName)
+		foreignKeys, err := h.db.FetchForeignKeys(ctx, dbName, tableName)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("外部キー情報の取得に失敗しました: %v", err)), nil
 		}
 
 		// カラム情報の取得
-		columns, err := fetchTableColumns(ctx, dbName, tableName)
+		columns, err := h.db.FetchTableColumns(ctx, dbName, tableName)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("カラム情報の取得に失敗しました: %v", err)), nil
 		}
 
 		// インデックス情報の取得
-		indexes, err := fetchTableIndexes(ctx, dbName, tableName)
+		indexes, err := h.db.FetchTableIndexes(ctx, dbName, tableName)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("インデックス情報の取得に失敗しました: %v", err)), nil
 		}

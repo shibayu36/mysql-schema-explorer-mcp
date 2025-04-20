@@ -53,8 +53,15 @@ type IndexInfo struct {
 	Unique  bool
 }
 
-// グローバル変数
-var db *sql.DB
+// DB はデータベース操作を担当する構造体
+type DB struct {
+	conn *sql.DB
+}
+
+// NewDB はDB構造体のインスタンスを作成する
+func NewDB(conn *sql.DB) *DB {
+	return &DB{conn: conn}
+}
 
 func connectDB(config DBConfig) (*sql.DB, error) {
 	// データベース名を指定せずに接続（各ツール実行時にデータベースを指定する）
@@ -69,10 +76,10 @@ func connectDB(config DBConfig) (*sql.DB, error) {
 	return conn, nil
 }
 
-// fetchTablesWithAllInfo はテーブル名、コメント、および全てのキー情報を取得する関数
-func fetchTablesWithAllInfo(ctx context.Context, dbName string) ([]TableInfo, error) {
+// FetchTablesWithAllInfo はテーブル名、コメント、および全てのキー情報を取得するメソッド
+func (db *DB) FetchTablesWithAllInfo(ctx context.Context, dbName string) ([]TableInfo, error) {
 	// 基本的なテーブル情報を取得
-	tables, err := fetchTablesWithComments(ctx, dbName)
+	tables, err := db.FetchTablesWithComments(ctx, dbName)
 	if err != nil {
 		return nil, err
 	}
@@ -80,19 +87,19 @@ func fetchTablesWithAllInfo(ctx context.Context, dbName string) ([]TableInfo, er
 	// 各テーブルの追加情報を取得
 	for i := range tables {
 		// 主キー情報を取得
-		tables[i].PK, err = fetchPrimaryKeys(ctx, dbName, tables[i].Name)
+		tables[i].PK, err = db.FetchPrimaryKeys(ctx, dbName, tables[i].Name)
 		if err != nil {
 			return nil, err
 		}
 
 		// 一意キー情報を取得
-		tables[i].UK, err = fetchUniqueKeys(ctx, dbName, tables[i].Name)
+		tables[i].UK, err = db.FetchUniqueKeys(ctx, dbName, tables[i].Name)
 		if err != nil {
 			return nil, err
 		}
 
 		// 外部キー情報を取得
-		tables[i].FK, err = fetchForeignKeys(ctx, dbName, tables[i].Name)
+		tables[i].FK, err = db.FetchForeignKeys(ctx, dbName, tables[i].Name)
 		if err != nil {
 			return nil, err
 		}
@@ -101,8 +108,8 @@ func fetchTablesWithAllInfo(ctx context.Context, dbName string) ([]TableInfo, er
 	return tables, nil
 }
 
-// fetchTablesWithComments はテーブル名とコメントを取得する関数
-func fetchTablesWithComments(ctx context.Context, dbName string) ([]TableInfo, error) {
+// FetchTablesWithComments はテーブル名とコメントを取得するメソッド
+func (db *DB) FetchTablesWithComments(ctx context.Context, dbName string) ([]TableInfo, error) {
 	query := `
 		SELECT 
 			TABLE_NAME, 
@@ -115,7 +122,7 @@ func fetchTablesWithComments(ctx context.Context, dbName string) ([]TableInfo, e
 			TABLE_NAME
 	`
 
-	rows, err := db.QueryContext(ctx, query, dbName)
+	rows, err := db.conn.QueryContext(ctx, query, dbName)
 	if err != nil {
 		return nil, err
 	}
@@ -137,8 +144,8 @@ func fetchTablesWithComments(ctx context.Context, dbName string) ([]TableInfo, e
 	return tables, nil
 }
 
-// fetchPrimaryKeys はテーブルの主キーカラムを取得する関数
-func fetchPrimaryKeys(ctx context.Context, dbName string, tableName string) ([]string, error) {
+// FetchPrimaryKeys はテーブルの主キーカラムを取得するメソッド
+func (db *DB) FetchPrimaryKeys(ctx context.Context, dbName string, tableName string) ([]string, error) {
 	query := `
 		SELECT 
 			COLUMN_NAME
@@ -152,7 +159,7 @@ func fetchPrimaryKeys(ctx context.Context, dbName string, tableName string) ([]s
 			ORDINAL_POSITION
 	`
 
-	rows, err := db.QueryContext(ctx, query, dbName, tableName)
+	rows, err := db.conn.QueryContext(ctx, query, dbName, tableName)
 	if err != nil {
 		return nil, err
 	}
@@ -174,8 +181,8 @@ func fetchPrimaryKeys(ctx context.Context, dbName string, tableName string) ([]s
 	return primaryKeys, nil
 }
 
-// fetchUniqueKeys はテーブルの一意キー制約を取得する関数
-func fetchUniqueKeys(ctx context.Context, dbName string, tableName string) ([]UniqueKey, error) {
+// FetchUniqueKeys はテーブルの一意キー制約を取得するメソッド
+func (db *DB) FetchUniqueKeys(ctx context.Context, dbName string, tableName string) ([]UniqueKey, error) {
 	query := `
 		SELECT 
 			kcu.CONSTRAINT_NAME,
@@ -197,7 +204,7 @@ func fetchUniqueKeys(ctx context.Context, dbName string, tableName string) ([]Un
 			kcu.ORDINAL_POSITION
 	`
 
-	rows, err := db.QueryContext(ctx, query, dbName, tableName)
+	rows, err := db.conn.QueryContext(ctx, query, dbName, tableName)
 	if err != nil {
 		return nil, err
 	}
@@ -227,8 +234,8 @@ func fetchUniqueKeys(ctx context.Context, dbName string, tableName string) ([]Un
 	return uniqueKeys, nil
 }
 
-// fetchForeignKeys はテーブルの外部キー制約を取得する関数
-func fetchForeignKeys(ctx context.Context, dbName string, tableName string) ([]ForeignKey, error) {
+// FetchForeignKeys はテーブルの外部キー制約を取得するメソッド
+func (db *DB) FetchForeignKeys(ctx context.Context, dbName string, tableName string) ([]ForeignKey, error) {
 	query := `
 		SELECT 
 			kcu.CONSTRAINT_NAME,
@@ -251,7 +258,7 @@ func fetchForeignKeys(ctx context.Context, dbName string, tableName string) ([]F
 			kcu.ORDINAL_POSITION
 	`
 
-	rows, err := db.QueryContext(ctx, query, dbName, tableName)
+	rows, err := db.conn.QueryContext(ctx, query, dbName, tableName)
 	if err != nil {
 		return nil, err
 	}
@@ -289,8 +296,8 @@ func fetchForeignKeys(ctx context.Context, dbName string, tableName string) ([]F
 	return foreignKeys, nil
 }
 
-// fetchTableColumns はテーブルのカラム情報を取得する関数
-func fetchTableColumns(ctx context.Context, dbName string, tableName string) ([]ColumnInfo, error) {
+// FetchTableColumns はテーブルのカラム情報を取得するメソッド
+func (db *DB) FetchTableColumns(ctx context.Context, dbName string, tableName string) ([]ColumnInfo, error) {
 	query := `
 		SELECT 
 			COLUMN_NAME, 
@@ -307,7 +314,7 @@ func fetchTableColumns(ctx context.Context, dbName string, tableName string) ([]
 			ORDINAL_POSITION
 	`
 
-	rows, err := db.QueryContext(ctx, query, dbName, tableName)
+	rows, err := db.conn.QueryContext(ctx, query, dbName, tableName)
 	if err != nil {
 		return nil, err
 	}
@@ -329,8 +336,8 @@ func fetchTableColumns(ctx context.Context, dbName string, tableName string) ([]
 	return columns, nil
 }
 
-// fetchTableIndexes はテーブルのインデックス情報を取得する関数
-func fetchTableIndexes(ctx context.Context, dbName string, tableName string) ([]IndexInfo, error) {
+// FetchTableIndexes はテーブルのインデックス情報を取得するメソッド
+func (db *DB) FetchTableIndexes(ctx context.Context, dbName string, tableName string) ([]IndexInfo, error) {
 	query := `
 		SELECT 
 			INDEX_NAME, 
@@ -354,7 +361,7 @@ func fetchTableIndexes(ctx context.Context, dbName string, tableName string) ([]
 			SEQ_IN_INDEX
 	`
 
-	rows, err := db.QueryContext(ctx, query, dbName, tableName, dbName, tableName)
+	rows, err := db.conn.QueryContext(ctx, query, dbName, tableName, dbName, tableName)
 	if err != nil {
 		return nil, err
 	}
