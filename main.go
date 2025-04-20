@@ -91,8 +91,8 @@ func main() {
 
 	s.AddTool(listTables, listTablesHandler)
 
-	describeTable := mcp.NewTool(
-		"describe_table",
+	describeTables := mcp.NewTool(
+		"describe_tables",
 		mcp.WithDescription("指定されたテーブルの詳細情報を返す"),
 		mcp.WithArray(
 			"tableNames",
@@ -106,7 +106,7 @@ func main() {
 		),
 	)
 
-	s.AddTool(describeTable, describeTableHandler)
+	s.AddTool(describeTables, describeTablesHandler)
 
 	if err := server.ServeStdio(s); err != nil {
 		fmt.Printf("Server error: %v\n", err)
@@ -463,8 +463,8 @@ func fetchForeignKeys(ctx context.Context, dbName string, tableName string) ([]F
 	return foreignKeys, nil
 }
 
-// describeTableHandler は指定されたテーブルの詳細情報を返すハンドラー
-func describeTableHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+// describeTablesHandler は指定されたテーブルの詳細情報を返すハンドラー
+func describeTablesHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	// リクエストからテーブル名の配列を取得
 	tableNamesRaw, ok := request.Params.Arguments["tableNames"]
 	if !ok {
