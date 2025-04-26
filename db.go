@@ -210,25 +210,31 @@ func (db *DB) FetchUniqueKeys(ctx context.Context, dbName string, tableName stri
 	}
 	defer rows.Close()
 
-	ukMap := make(map[string][]string)
+	// SQL取得の順序を維持しながら情報を構築する
+	var uniqueKeys []UniqueKey
+	var currentUniqueKey *UniqueKey
 	for rows.Next() {
 		var constraintName, columnName string
 		if err := rows.Scan(&constraintName, &columnName); err != nil {
 			return nil, err
 		}
-		ukMap[constraintName] = append(ukMap[constraintName], columnName)
+
+		if currentUniqueKey == nil || currentUniqueKey.Name != constraintName {
+			// 一つ目、もしくは別のUKに切り替わった時
+			newUK := UniqueKey{
+				Name:    constraintName,
+				Columns: []string{},
+			}
+			uniqueKeys = append(uniqueKeys, newUK)
+			currentUniqueKey = &uniqueKeys[len(uniqueKeys)-1]
+		}
+
+		// 同じ制約名の場合、現在のUniqueKeyのColumnsに追加
+		currentUniqueKey.Columns = append(currentUniqueKey.Columns, columnName)
 	}
 
 	if err := rows.Err(); err != nil {
 		return nil, err
-	}
-
-	var uniqueKeys []UniqueKey
-	for name, columns := range ukMap {
-		uniqueKeys = append(uniqueKeys, UniqueKey{
-			Name:    name,
-			Columns: columns,
-		})
 	}
 
 	return uniqueKeys, nil
