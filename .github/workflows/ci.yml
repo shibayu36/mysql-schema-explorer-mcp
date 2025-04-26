@@ -1,0 +1,35 @@
+name: CI
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: rootpass
+        ports:
+          - 3306:3306
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+      - name: Wait for MySQL
+        run: |
+          n=0; until mysqladmin ping -h127.0.0.1 -uroot -prootpass > /dev/null 2>&1 || [ $n -ge 30 ]; do
+            n=$((n+1)); echo "Waiting for MySQL... ($n)"; sleep 1;
+          done
+          if [ $n -ge 30 ]; then echo "MySQL not ready"; exit 1; fi
+
+      - name: Run tests
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USER: root
+          DB_PASSWORD: rootpass
+        run: go test -v ./... -timeout 5m
