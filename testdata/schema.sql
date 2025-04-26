@@ -21,7 +21,9 @@ CREATE TABLE products (
     maker_code VARCHAR(50) NOT NULL COMMENT 'メーカーコード',
     internal_code VARCHAR(50) NOT NULL COMMENT '社内商品コード',
     product_name VARCHAR(255) COMMENT '商品名',
-    UNIQUE KEY uk_maker_internal (maker_code, internal_code) -- 複合一意キー
+    UNIQUE KEY uk_maker_internal (maker_code, internal_code), -- 複合一意キー
+    INDEX idx_product_name (product_name),
+    INDEX idx_maker_product_name (maker_code, product_name)
 ) COMMENT='商品マスター';
 
 -- order_items テーブル
