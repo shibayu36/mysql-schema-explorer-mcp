@@ -270,33 +270,29 @@ func (db *DB) FetchForeignKeys(ctx context.Context, dbName string, tableName str
 	}
 	defer rows.Close()
 
-	fkMap := make(map[string]ForeignKey)
+	// SQL取得の順序を維持しながら情報を構築する
+	var foreignKeys []ForeignKey
+	var currentFK *ForeignKey
 	for rows.Next() {
 		var constraintName, columnName, refTableName, refColumnName string
 		if err := rows.Scan(&constraintName, &columnName, &refTableName, &refColumnName); err != nil {
 			return nil, err
 		}
 
-		fk, exists := fkMap[constraintName]
-		if !exists {
-			fk = ForeignKey{
+		if currentFK == nil || currentFK.Name != constraintName {
+			newFK := ForeignKey{
 				Name:     constraintName,
 				RefTable: refTableName,
 			}
+			foreignKeys = append(foreignKeys, newFK)
+			currentFK = &foreignKeys[len(foreignKeys)-1]
 		}
 
-		fk.Columns = append(fk.Columns, columnName)
-		fk.RefColumns = append(fk.RefColumns, refColumnName)
-		fkMap[constraintName] = fk
+		currentFK.Columns = append(currentFK.Columns, columnName)
+		currentFK.RefColumns = append(currentFK.RefColumns, refColumnName)
 	}
-
 	if err := rows.Err(); err != nil {
 		return nil, err
-	}
-
-	var foreignKeys []ForeignKey
-	for _, fk := range fkMap {
-		foreignKeys = append(foreignKeys, fk)
 	}
 
 	return foreignKeys, nil
@@ -373,33 +369,28 @@ func (db *DB) FetchTableIndexes(ctx context.Context, dbName string, tableName st
 	}
 	defer rows.Close()
 
-	indexMap := make(map[string]*IndexInfo)
+	// SQL取得の順序を維持しながら情報を構築する
+	var indexes []IndexInfo
+	var currentIdx *IndexInfo
 	for rows.Next() {
 		var indexName, columnName string
 		var nonUnique bool
 		if err := rows.Scan(&indexName, &columnName, &nonUnique); err != nil {
 			return nil, err
 		}
-
-		idx, exists := indexMap[indexName]
-		if !exists {
-			idx = &IndexInfo{
-				Name:   indexName,
-				Unique: !nonUnique,
+		if currentIdx == nil || currentIdx.Name != indexName {
+			newIdx := IndexInfo{
+				Name:    indexName,
+				Unique:  !nonUnique,
+				Columns: []string{},
 			}
-			indexMap[indexName] = idx
+			indexes = append(indexes, newIdx)
+			currentIdx = &indexes[len(indexes)-1]
 		}
-		idx.Columns = append(idx.Columns, columnName)
+		currentIdx.Columns = append(currentIdx.Columns, columnName)
 	}
-
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-
-	var indexes []IndexInfo
-	for _, idx := range indexMap {
-		indexes = append(indexes, *idx)
-	}
-
 	return indexes, nil
 }
