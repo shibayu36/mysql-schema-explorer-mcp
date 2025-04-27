@@ -6,7 +6,6 @@ import (
 	"fmt"
 )
 
-// DBConfig はデータベース接続設定を保持する構造体
 type DBConfig struct {
 	Host     string
 	Port     string
@@ -14,8 +13,7 @@ type DBConfig struct {
 	Password string
 }
 
-// TableInfo はテーブル情報を保持する構造体
-type TableInfo struct {
+type TableSummary struct {
 	Name    string
 	Comment string
 	PK      []string     // 主キーカラム
@@ -23,13 +21,11 @@ type TableInfo struct {
 	FK      []ForeignKey // 外部キー情報
 }
 
-// UniqueKey は一意キー情報を保持する構造体
 type UniqueKey struct {
 	Name    string
 	Columns []string
 }
 
-// ForeignKey は外部キー情報を保持する構造体
 type ForeignKey struct {
 	Name       string
 	Columns    []string
@@ -37,7 +33,6 @@ type ForeignKey struct {
 	RefColumns []string
 }
 
-// ColumnInfo はカラム情報を保持する構造体
 type ColumnInfo struct {
 	Name       string
 	Type       string
@@ -46,25 +41,21 @@ type ColumnInfo struct {
 	Comment    string
 }
 
-// IndexInfo はインデックス情報を保持する構造体
 type IndexInfo struct {
 	Name    string
 	Columns []string
 	Unique  bool
 }
 
-// DB はデータベース操作を担当する構造体
 type DB struct {
 	conn *sql.DB
 }
 
-// NewDB はDB構造体のインスタンスを作成する
 func NewDB(conn *sql.DB) *DB {
 	return &DB{conn: conn}
 }
 
 func connectDB(config DBConfig) (*sql.DB, error) {
-	// データベース名を指定せずに接続（各ツール実行時にデータベースを指定する）
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/",
 		config.User, config.Password, config.Host, config.Port)
 
@@ -76,29 +67,25 @@ func connectDB(config DBConfig) (*sql.DB, error) {
 	return conn, nil
 }
 
-// FetchTablesWithAllInfo はテーブル名、コメント、および全てのキー情報を取得するメソッド
-func (db *DB) FetchTablesWithAllInfo(ctx context.Context, dbName string) ([]TableInfo, error) {
-	// 基本的なテーブル情報を取得
-	tables, err := db.FetchTablesWithComments(ctx, dbName)
+// FetchAllTableSummaries データベース内の全てのテーブルのサマリー情報を取得
+func (db *DB) FetchAllTableSummaries(ctx context.Context, dbName string) ([]TableSummary, error) {
+	tables, err := db.FetchTableWithComments(ctx, dbName)
 	if err != nil {
 		return nil, err
 	}
 
 	// 各テーブルの追加情報を取得
 	for i := range tables {
-		// 主キー情報を取得
 		tables[i].PK, err = db.FetchPrimaryKeys(ctx, dbName, tables[i].Name)
 		if err != nil {
 			return nil, err
 		}
 
-		// 一意キー情報を取得
 		tables[i].UK, err = db.FetchUniqueKeys(ctx, dbName, tables[i].Name)
 		if err != nil {
 			return nil, err
 		}
 
-		// 外部キー情報を取得
 		tables[i].FK, err = db.FetchForeignKeys(ctx, dbName, tables[i].Name)
 		if err != nil {
 			return nil, err
@@ -108,8 +95,8 @@ func (db *DB) FetchTablesWithAllInfo(ctx context.Context, dbName string) ([]Tabl
 	return tables, nil
 }
 
-// FetchTablesWithComments はテーブル名とコメントを取得するメソッド
-func (db *DB) FetchTablesWithComments(ctx context.Context, dbName string) ([]TableInfo, error) {
+// FetchTableWithComments テーブル名とコメントを取得
+func (db *DB) FetchTableWithComments(ctx context.Context, dbName string) ([]TableSummary, error) {
 	query := `
 		SELECT 
 			TABLE_NAME, 
@@ -128,9 +115,9 @@ func (db *DB) FetchTablesWithComments(ctx context.Context, dbName string) ([]Tab
 	}
 	defer rows.Close()
 
-	var tables []TableInfo
+	var tables []TableSummary
 	for rows.Next() {
-		var table TableInfo
+		var table TableSummary
 		if err := rows.Scan(&table.Name, &table.Comment); err != nil {
 			return nil, err
 		}
@@ -144,7 +131,7 @@ func (db *DB) FetchTablesWithComments(ctx context.Context, dbName string) ([]Tab
 	return tables, nil
 }
 
-// FetchPrimaryKeys はテーブルの主キーカラムを取得するメソッド
+// FetchPrimaryKeys テーブルの主キーカラムを取得
 func (db *DB) FetchPrimaryKeys(ctx context.Context, dbName string, tableName string) ([]string, error) {
 	query := `
 		SELECT 
@@ -181,7 +168,7 @@ func (db *DB) FetchPrimaryKeys(ctx context.Context, dbName string, tableName str
 	return primaryKeys, nil
 }
 
-// FetchUniqueKeys はテーブルの一意キー制約を取得するメソッド
+// FetchUniqueKeys テーブルの一意キー制約を取得
 func (db *DB) FetchUniqueKeys(ctx context.Context, dbName string, tableName string) ([]UniqueKey, error) {
 	query := `
 		SELECT 
@@ -240,7 +227,7 @@ func (db *DB) FetchUniqueKeys(ctx context.Context, dbName string, tableName stri
 	return uniqueKeys, nil
 }
 
-// FetchForeignKeys はテーブルの外部キー制約を取得するメソッド
+// FetchForeignKeys テーブルの外部キー制約を取得
 func (db *DB) FetchForeignKeys(ctx context.Context, dbName string, tableName string) ([]ForeignKey, error) {
 	query := `
 		SELECT 
@@ -298,7 +285,7 @@ func (db *DB) FetchForeignKeys(ctx context.Context, dbName string, tableName str
 	return foreignKeys, nil
 }
 
-// FetchTableColumns はテーブルのカラム情報を取得するメソッド
+// FetchTableColumns テーブルのカラム情報を取得
 func (db *DB) FetchTableColumns(ctx context.Context, dbName string, tableName string) ([]ColumnInfo, error) {
 	query := `
 		SELECT 

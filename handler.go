@@ -8,19 +8,17 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
-// Handler はMCPハンドラーを実装する構造体
+// Handler MCPハンドラーを実装する構造体
 type Handler struct {
 	db *DB
 }
 
-// NewHandler はHandler構造体のインスタンスを作成する
 func NewHandler(db *DB) *Handler {
 	return &Handler{db: db}
 }
 
-// ListTables は全てのテーブル情報を返すハンドラーメソッド
+// ListTables 全てのテーブルのサマリー情報を返す
 func (h *Handler) ListTables(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	// dbNameパラメータを取得
 	dbNameRaw, ok := request.Params.Arguments["dbName"]
 	if !ok {
 		return mcp.NewToolResultError("データベース名が指定されていません"), nil
@@ -32,13 +30,12 @@ func (h *Handler) ListTables(ctx context.Context, request mcp.CallToolRequest) (
 	}
 
 	// テーブル情報の取得
-	tables, err := h.db.FetchTablesWithAllInfo(ctx, dbName)
+	tables, err := h.db.FetchAllTableSummaries(ctx, dbName)
 	if err != nil {
-		// エラーが発生した場合は適切なエラーメッセージを返す
 		return mcp.NewToolResultError(fmt.Sprintf("テーブル情報の取得に失敗しました: %v", err)), nil
 	}
 
-	// テーブルが見つからない場合
+	// テーブルが見つからない
 	if len(tables) == 0 {
 		return mcp.NewToolResultText("データベース内にテーブルが存在しません。"), nil
 	}
@@ -54,12 +51,9 @@ func (h *Handler) ListTables(ctx context.Context, request mcp.CallToolRequest) (
 
 	// テーブルリスト
 	for _, table := range tables {
-		// 基本情報
 		sb.WriteString(fmt.Sprintf("- %s - %s", table.Name, table.Comment))
 
-		// 主キー情報
 		if len(table.PK) > 0 {
-			// 主キーが複数カラムの場合は括弧でグループ化
 			pkStr := strings.Join(table.PK, ", ")
 			if len(table.PK) > 1 {
 				pkStr = fmt.Sprintf("(%s)", pkStr)
@@ -67,11 +61,9 @@ func (h *Handler) ListTables(ctx context.Context, request mcp.CallToolRequest) (
 			sb.WriteString(fmt.Sprintf(" [PK: %s]", pkStr))
 		}
 
-		// 一意キー情報
 		if len(table.UK) > 0 {
 			var ukInfo []string
 			for _, uk := range table.UK {
-				// 複合キーの場合は括弧でグループ化
 				if len(uk.Columns) > 1 {
 					ukInfo = append(ukInfo, fmt.Sprintf("(%s)", strings.Join(uk.Columns, ", ")))
 				} else {
@@ -81,15 +73,12 @@ func (h *Handler) ListTables(ctx context.Context, request mcp.CallToolRequest) (
 			sb.WriteString(fmt.Sprintf(" [UK: %s]", strings.Join(ukInfo, "; ")))
 		}
 
-		// 外部キー情報
 		if len(table.FK) > 0 {
 			var fkInfo []string
 			for _, fk := range table.FK {
-				// カラムとリファレンスカラムを整形
 				colStr := strings.Join(fk.Columns, ", ")
 				refColStr := strings.Join(fk.RefColumns, ", ")
 
-				// 複合キーの場合は括弧でグループ化
 				if len(fk.Columns) > 1 {
 					colStr = fmt.Sprintf("(%s)", colStr)
 				}
@@ -125,26 +114,21 @@ func (h *Handler) DescribeTables(ctx context.Context, request mcp.CallToolReques
 		return mcp.NewToolResultError("データベース名が正しく指定されていません"), nil
 	}
 
-	// リクエストからテーブル名の配列を取得
+	// テーブル名一覧を作成
 	tableNamesRaw, ok := request.Params.Arguments["tableNames"]
 	if !ok {
 		return mcp.NewToolResultError("テーブル名が指定されていません"), nil
 	}
-
-	// 配列への変換
 	tableNamesInterface, ok := tableNamesRaw.([]interface{})
 	if !ok || len(tableNamesInterface) == 0 {
 		return mcp.NewToolResultError("テーブル名の配列が正しく指定されていません"), nil
 	}
-
-	// テーブル名を文字列の配列に変換
 	var tableNames []string
 	for _, v := range tableNamesInterface {
 		if tableName, ok := v.(string); ok && tableName != "" {
 			tableNames = append(tableNames, tableName)
 		}
 	}
-
 	if len(tableNames) == 0 {
 		return mcp.NewToolResultError("有効なテーブル名が指定されていません"), nil
 	}
@@ -159,13 +143,13 @@ func (h *Handler) DescribeTables(ctx context.Context, request mcp.CallToolReques
 		}
 
 		// テーブル情報の取得
-		tables, err := h.db.FetchTablesWithComments(ctx, dbName)
+		tables, err := h.db.FetchTableWithComments(ctx, dbName)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("テーブル情報の取得に失敗しました: %v", err)), nil
 		}
 
 		// 指定されたテーブルを探す
-		var tableInfo TableInfo
+		var tableInfo TableSummary
 		var tableFound bool
 		for _, t := range tables {
 			if t.Name == tableName {
@@ -180,45 +164,38 @@ func (h *Handler) DescribeTables(ctx context.Context, request mcp.CallToolReques
 			continue
 		}
 
-		// 主キー情報の取得
 		primaryKeys, err := h.db.FetchPrimaryKeys(ctx, dbName, tableName)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("主キー情報の取得に失敗しました: %v", err)), nil
 		}
 
-		// 一意キー情報の取得
 		uniqueKeys, err := h.db.FetchUniqueKeys(ctx, dbName, tableName)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("一意キー情報の取得に失敗しました: %v", err)), nil
 		}
 
-		// 外部キー情報の取得
 		foreignKeys, err := h.db.FetchForeignKeys(ctx, dbName, tableName)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("外部キー情報の取得に失敗しました: %v", err)), nil
 		}
 
-		// カラム情報の取得
 		columns, err := h.db.FetchTableColumns(ctx, dbName, tableName)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("カラム情報の取得に失敗しました: %v", err)), nil
 		}
 
-		// インデックス情報の取得
 		indexes, err := h.db.FetchTableIndexes(ctx, dbName, tableName)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("インデックス情報の取得に失敗しました: %v", err)), nil
 		}
 
 		// 結果の整形
-		// テーブル基本情報
 		sb.WriteString(fmt.Sprintf("# テーブル: %s", tableName))
 		if tableInfo.Comment != "" {
 			sb.WriteString(fmt.Sprintf(" - %s", tableInfo.Comment))
 		}
 		sb.WriteString("\n\n")
 
-		// カラム情報
 		sb.WriteString("## カラム\n")
 		for _, col := range columns {
 			nullable := "NOT NULL"
@@ -241,10 +218,8 @@ func (h *Handler) DescribeTables(ctx context.Context, request mcp.CallToolReques
 		}
 		sb.WriteString("\n")
 
-		// キー情報
 		sb.WriteString("## キー情報\n")
 
-		// 主キー情報
 		if len(primaryKeys) > 0 {
 			pkStr := strings.Join(primaryKeys, ", ")
 			if len(primaryKeys) > 1 {
@@ -253,7 +228,6 @@ func (h *Handler) DescribeTables(ctx context.Context, request mcp.CallToolReques
 			sb.WriteString(fmt.Sprintf("[PK: %s]\n", pkStr))
 		}
 
-		// 一意キー情報
 		if len(uniqueKeys) > 0 {
 			var ukInfo []string
 			for _, uk := range uniqueKeys {
@@ -266,7 +240,6 @@ func (h *Handler) DescribeTables(ctx context.Context, request mcp.CallToolReques
 			sb.WriteString(fmt.Sprintf("[UK: %s]\n", strings.Join(ukInfo, "; ")))
 		}
 
-		// 外部キー情報
 		if len(foreignKeys) > 0 {
 			var fkInfo []string
 			for _, fk := range foreignKeys {
@@ -289,7 +262,6 @@ func (h *Handler) DescribeTables(ctx context.Context, request mcp.CallToolReques
 			sb.WriteString(fmt.Sprintf("[FK: %s]\n", strings.Join(fkInfo, "; ")))
 		}
 
-		// インデックス情報
 		if len(indexes) > 0 {
 			var idxInfo []string
 			for _, idx := range indexes {
