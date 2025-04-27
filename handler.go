@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strings"
+	"text/template"
 
 	"github.com/mark3labs/mcp-go/mcp"
 )
@@ -40,65 +42,23 @@ func (h *Handler) ListTables(ctx context.Context, request mcp.CallToolRequest) (
 		return mcp.NewToolResultText("データベース内にテーブルが存在しません。"), nil
 	}
 
-	// フォーマット済みのテキスト出力を構築
-	var sb strings.Builder
-
-	// ヘッダー部分
-	sb.WriteString(fmt.Sprintf("データベース「%s」のテーブル一覧 (全%d件)\n", dbName, len(tables)))
-	sb.WriteString("フォーマット: テーブル名 - テーブルコメント [PK: 主キー] [UK: 一意キー1; 一意キー2...] [FK: 外部キー -> 参照先テーブル.カラム; ...]\n")
-	sb.WriteString("※ 複合キー（複数カラムで構成されるキー）は括弧でグループ化: (col1, col2)\n")
-	sb.WriteString("※ 複数の異なるキー制約はセミコロンで区切り: key1; key2\n\n")
-
-	// テーブルリスト
-	for _, table := range tables {
-		sb.WriteString(fmt.Sprintf("- %s - %s", table.Name, table.Comment))
-
-		if len(table.PK) > 0 {
-			pkStr := strings.Join(table.PK, ", ")
-			if len(table.PK) > 1 {
-				pkStr = fmt.Sprintf("(%s)", pkStr)
-			}
-			sb.WriteString(fmt.Sprintf(" [PK: %s]", pkStr))
+	// 出力の作成
+	var output bytes.Buffer
+	{
+		tmpl, err := template.New("listTables").Funcs(funcMap).Parse(listTablesTemplate)
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("テンプレートの解析に失敗しました: %v", err)), nil
 		}
 
-		if len(table.UK) > 0 {
-			var ukInfo []string
-			for _, uk := range table.UK {
-				if len(uk.Columns) > 1 {
-					ukInfo = append(ukInfo, fmt.Sprintf("(%s)", strings.Join(uk.Columns, ", ")))
-				} else {
-					ukInfo = append(ukInfo, strings.Join(uk.Columns, ", "))
-				}
-			}
-			sb.WriteString(fmt.Sprintf(" [UK: %s]", strings.Join(ukInfo, "; ")))
+		if err := tmpl.Execute(&output, ListTablesData{
+			DBName: dbName,
+			Tables: tables,
+		}); err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("テンプレートの実行に失敗しました: %v", err)), nil
 		}
-
-		if len(table.FK) > 0 {
-			var fkInfo []string
-			for _, fk := range table.FK {
-				colStr := strings.Join(fk.Columns, ", ")
-				refColStr := strings.Join(fk.RefColumns, ", ")
-
-				if len(fk.Columns) > 1 {
-					colStr = fmt.Sprintf("(%s)", colStr)
-				}
-
-				if len(fk.RefColumns) > 1 {
-					refColStr = fmt.Sprintf("(%s)", refColStr)
-				}
-
-				fkInfo = append(fkInfo, fmt.Sprintf("%s -> %s.%s",
-					colStr,
-					fk.RefTable,
-					refColStr))
-			}
-			sb.WriteString(fmt.Sprintf(" [FK: %s]", strings.Join(fkInfo, "; ")))
-		}
-
-		sb.WriteString("\n")
 	}
 
-	return mcp.NewToolResultText(sb.String()), nil
+	return mcp.NewToolResultText(output.String()), nil
 }
 
 // DescribeTables は指定されたテーブルの詳細情報を返すハンドラーメソッド
