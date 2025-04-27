@@ -133,6 +133,11 @@ func (h *Handler) DescribeTables(ctx context.Context, request mcp.CallToolReques
 		return mcp.NewToolResultError("有効なテーブル名が指定されていません"), nil
 	}
 
+	allTables, err := h.db.FetchAllTableSummaries(ctx, dbName)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("テーブル情報の取得に失敗しました: %v", err)), nil
+	}
+
 	var sb strings.Builder
 
 	// すべてのテーブルに対して情報を取得
@@ -142,16 +147,10 @@ func (h *Handler) DescribeTables(ctx context.Context, request mcp.CallToolReques
 			sb.WriteString("\n---\n\n")
 		}
 
-		// テーブル情報の取得
-		tables, err := h.db.FetchTableWithComments(ctx, dbName)
-		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("テーブル情報の取得に失敗しました: %v", err)), nil
-		}
-
 		// 指定されたテーブルを探す
 		var tableInfo TableSummary
 		var tableFound bool
-		for _, t := range tables {
+		for _, t := range allTables {
 			if t.Name == tableName {
 				tableInfo = t
 				tableFound = true
