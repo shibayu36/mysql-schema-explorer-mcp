@@ -3,6 +3,8 @@
 MySQLデータベースのスキーマ情報を圧縮して提供するModel Context Protocol (MCP) サーバーです。
 規模の大きいデータベーススキーマを使っているためにスキーマダンプファイルがコンテキストサイズに載らない場合に、このMCPサーバーが有用です。
 
+https://github.com/user-attachments/assets/f81b2513-31bd-4a60-9b54-45f76323d112
+
 ## 提供するツール
 
 - テーブル一覧の取得 (`list_tables`)
