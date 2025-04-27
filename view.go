@@ -23,10 +23,35 @@ const listTablesTemplate = `データベース「{{.DBName}}」のテーブル�
 {{end -}}
 `
 
+// TableDetail 個々のテーブルの詳細情報 (db.go の型を使用)
+type TableDetail struct {
+	Name        string
+	Comment     string
+	Columns     []ColumnInfo // db.go の ColumnInfo
+	PrimaryKeys []string     // string スライス
+	UniqueKeys  []UniqueKey  // db.go の UniqueKey
+	ForeignKeys []ForeignKey // db.go の ForeignKey
+	Indexes     []IndexInfo  // db.go の IndexInfo
+}
+
+const describeTableDetailTemplate = `# テーブル: {{.Name}}{{if .Comment}} - {{.Comment}}{{end}}
+
+## カラム{{range .Columns}}
+{{formatColumn .}}{{end}}
+
+## キー情報{{if .PrimaryKeys}}
+[PK: {{formatPK .PrimaryKeys}}]{{end}}{{if .UniqueKeys}}
+[UK: {{formatUK .UniqueKeys}}]{{end}}{{if .ForeignKeys}}
+[FK: {{formatFK .ForeignKeys}}]{{end}}{{if .Indexes}}
+[INDEX: {{formatIndex .Indexes}}]{{end}}
+`
+
 var funcMap = template.FuncMap{
-	"formatPK": formatPK,
-	"formatUK": formatUK,
-	"formatFK": formatFK,
+	"formatPK":     formatPK,
+	"formatUK":     formatUK,
+	"formatFK":     formatFK,
+	"formatColumn": formatColumn,
+	"formatIndex":  formatIndex,
 }
 
 // formatPK は主キー情報をフォーマットします
@@ -81,4 +106,40 @@ func formatFK(fk []ForeignKey) string {
 			refColStr))
 	}
 	return strings.Join(fkInfo, "; ")
+}
+
+// formatColumn はカラム情報をフォーマットします
+func formatColumn(col ColumnInfo) string {
+	nullable := "NOT NULL"
+	if col.IsNullable == "YES" {
+		nullable = "NULL"
+	}
+
+	defaultValue := ""
+	if col.Default.Valid {
+		defaultValue = fmt.Sprintf(" DEFAULT %s", col.Default.String)
+	}
+
+	comment := ""
+	if col.Comment != "" {
+		comment = fmt.Sprintf(" [%s]", col.Comment)
+	}
+
+	return fmt.Sprintf("- %s: %s %s%s%s",
+		col.Name, col.Type, nullable, defaultValue, comment)
+}
+
+func formatIndex(idx []IndexInfo) string {
+	if len(idx) == 0 {
+		return ""
+	}
+	var idxInfo []string
+	for _, i := range idx {
+		if len(i.Columns) > 1 {
+			idxInfo = append(idxInfo, fmt.Sprintf("(%s)", strings.Join(i.Columns, ", ")))
+		} else {
+			idxInfo = append(idxInfo, strings.Join(i.Columns, ", "))
+		}
+	}
+	return strings.Join(idxInfo, "; ")
 }

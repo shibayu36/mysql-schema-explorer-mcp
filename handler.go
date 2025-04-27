@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"strings"
 	"text/template"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -98,13 +97,18 @@ func (h *Handler) DescribeTables(ctx context.Context, request mcp.CallToolReques
 		return mcp.NewToolResultError(fmt.Sprintf("テーブル情報の取得に失敗しました: %v", err)), nil
 	}
 
-	var sb strings.Builder
+	// 出力の準備
+	var output bytes.Buffer
+	tmpl, err := template.New("describeTableDetail").Funcs(funcMap).Parse(describeTableDetailTemplate)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("テンプレートの解析に失敗しました: %v", err)), nil
+	}
 
 	// すべてのテーブルに対して情報を取得
 	for i, tableName := range tableNames {
 		// 2つ目以降のテーブルの前に区切り線を追加
 		if i > 0 {
-			sb.WriteString("\n---\n\n")
+			output.WriteString("\n---\n\n")
 		}
 
 		// 指定されたテーブルを探す
@@ -119,10 +123,11 @@ func (h *Handler) DescribeTables(ctx context.Context, request mcp.CallToolReques
 		}
 
 		if !tableFound {
-			sb.WriteString(fmt.Sprintf("# テーブル: %s\nテーブルが見つかりません\n", tableName))
+			output.WriteString(fmt.Sprintf("# テーブル: %s\nテーブルが見つかりません\n", tableName))
 			continue
 		}
 
+		// テーブル詳細情報の取得
 		primaryKeys, err := h.db.FetchPrimaryKeys(ctx, dbName, tableName)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("主キー情報の取得に失敗しました: %v", err)), nil
@@ -148,91 +153,22 @@ func (h *Handler) DescribeTables(ctx context.Context, request mcp.CallToolReques
 			return mcp.NewToolResultError(fmt.Sprintf("インデックス情報の取得に失敗しました: %v", err)), nil
 		}
 
-		// 結果の整形
-		sb.WriteString(fmt.Sprintf("# テーブル: %s", tableName))
-		if tableInfo.Comment != "" {
-			sb.WriteString(fmt.Sprintf(" - %s", tableInfo.Comment))
-		}
-		sb.WriteString("\n\n")
-
-		sb.WriteString("## カラム\n")
-		for _, col := range columns {
-			nullable := "NOT NULL"
-			if col.IsNullable == "YES" {
-				nullable = "NULL"
-			}
-
-			defaultValue := ""
-			if col.Default.Valid {
-				defaultValue = fmt.Sprintf(" DEFAULT %s", col.Default.String)
-			}
-
-			comment := ""
-			if col.Comment != "" {
-				comment = fmt.Sprintf(" [%s]", col.Comment)
-			}
-
-			sb.WriteString(fmt.Sprintf("- %s: %s %s%s%s\n",
-				col.Name, col.Type, nullable, defaultValue, comment))
-		}
-		sb.WriteString("\n")
-
-		sb.WriteString("## キー情報\n")
-
-		if len(primaryKeys) > 0 {
-			pkStr := strings.Join(primaryKeys, ", ")
-			if len(primaryKeys) > 1 {
-				pkStr = fmt.Sprintf("(%s)", pkStr)
-			}
-			sb.WriteString(fmt.Sprintf("[PK: %s]\n", pkStr))
+		// テンプレートに渡すデータを作成
+		tableDetail := TableDetail{
+			Name:        tableName,
+			Comment:     tableInfo.Comment,
+			Columns:     columns,
+			PrimaryKeys: primaryKeys,
+			UniqueKeys:  uniqueKeys,
+			ForeignKeys: foreignKeys,
+			Indexes:     indexes,
 		}
 
-		if len(uniqueKeys) > 0 {
-			var ukInfo []string
-			for _, uk := range uniqueKeys {
-				if len(uk.Columns) > 1 {
-					ukInfo = append(ukInfo, fmt.Sprintf("(%s)", strings.Join(uk.Columns, ", ")))
-				} else {
-					ukInfo = append(ukInfo, strings.Join(uk.Columns, ", "))
-				}
-			}
-			sb.WriteString(fmt.Sprintf("[UK: %s]\n", strings.Join(ukInfo, "; ")))
-		}
-
-		if len(foreignKeys) > 0 {
-			var fkInfo []string
-			for _, fk := range foreignKeys {
-				colStr := strings.Join(fk.Columns, ", ")
-				refColStr := strings.Join(fk.RefColumns, ", ")
-
-				if len(fk.Columns) > 1 {
-					colStr = fmt.Sprintf("(%s)", colStr)
-				}
-
-				if len(fk.RefColumns) > 1 {
-					refColStr = fmt.Sprintf("(%s)", refColStr)
-				}
-
-				fkInfo = append(fkInfo, fmt.Sprintf("%s -> %s.%s",
-					colStr,
-					fk.RefTable,
-					refColStr))
-			}
-			sb.WriteString(fmt.Sprintf("[FK: %s]\n", strings.Join(fkInfo, "; ")))
-		}
-
-		if len(indexes) > 0 {
-			var idxInfo []string
-			for _, idx := range indexes {
-				if len(idx.Columns) > 1 {
-					idxInfo = append(idxInfo, fmt.Sprintf("(%s)", strings.Join(idx.Columns, ", ")))
-				} else {
-					idxInfo = append(idxInfo, strings.Join(idx.Columns, ", "))
-				}
-			}
-			sb.WriteString(fmt.Sprintf("[INDEX: %s]\n", strings.Join(idxInfo, "; ")))
+		// テンプレートを実行してバッファに書き込む
+		if err := tmpl.Execute(&output, tableDetail); err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("テンプレートの実行に失敗しました: %v", err)), nil
 		}
 	}
 
-	return mcp.NewToolResultText(sb.String()), nil
+	return mcp.NewToolResultText(output.String()), nil
 }
