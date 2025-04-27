@@ -43,7 +43,7 @@ func TestListTables(t *testing.T) {
 ※ 複数の異なるキー制約はセミコロンで区切り: key1; key2
 
 - order_items - 注文明細 [PK: (order_id, item_seq)] [UK: (order_id, product_maker, product_internal_code)] [FK: order_id -> orders.id; (product_maker, product_internal_code) -> products.(maker_code, internal_code)]
-- orders - 注文ヘッダー [PK: id]
+- orders - 注文ヘッダー [PK: id] [FK: user_id -> users.id]
 - products - 商品マスター [PK: product_code] [UK: (maker_code, internal_code)]
 - users - ユーザー情報 [PK: id] [UK: email; (tenant_id, employee_id); username]
 `

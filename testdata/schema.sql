@@ -1,10 +1,3 @@
--- orders テーブル（order_items からの参照用）
-CREATE TABLE orders (
-    id INT AUTO_INCREMENT PRIMARY KEY COMMENT '注文ID',
-    order_date DATETIME COMMENT '注文日時',
-    INDEX(id) -- 複合外部キーの参照先としてインデックスが必要
-) COMMENT='注文ヘッダー';
-
 -- users テーブル
 CREATE TABLE users (
     id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ユーザーシステムID',
@@ -14,6 +7,15 @@ CREATE TABLE users (
     employee_id INT NOT NULL COMMENT '従業員ID',
     UNIQUE KEY uk_tenant_employee (tenant_id, employee_id) -- 複合一意キー
 ) COMMENT='ユーザー情報';
+
+-- orders テーブル（order_items からの参照用）
+CREATE TABLE orders (
+    id INT AUTO_INCREMENT PRIMARY KEY COMMENT '注文ID',
+    user_id INT NOT NULL COMMENT 'ユーザーID (FK)',
+    order_date DATETIME COMMENT '注文日時',
+    INDEX(id), -- 複合外部キーの参照先としてインデックスが必要
+    FOREIGN KEY fk_user (user_id) REFERENCES users(id)
+) COMMENT='注文ヘッダー';
 
 -- products テーブル
 CREATE TABLE products (
