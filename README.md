@@ -3,7 +3,7 @@
 This is a Model Context Protocol (MCP) server that provides compressed schema information for MySQL databases.
 This MCP server is useful when the schema dump file does not fit in the context size because you are using a large database schema.
 
-https://github.com/user-attachments/assets/f81b2513-31bd-4a60-9b54-45f76323d112
+https://github.com/user-attachments/assets/0cecef84-cd70-4f84-95cb-01c6ec7c9ac7
 
 ## Provided Tools
 
