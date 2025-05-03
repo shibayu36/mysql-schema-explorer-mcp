@@ -1,7 +1,0 @@
----
-description: mcp-goを使った実装を行うときに読み込む
-globs: 
-alwaysApply: false
----
-- 基本的には [mcp-go-cheatsheet.md](mdc:docs/mcp-go-cheatsheet.md) に書かれた内容を参考に実装すること
-- もしこの中の情報で足りない場合は、https://github.com/mark3labs/mcp-go から必要な情報をfetchして実装すること
