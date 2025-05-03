@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "mysql-schema-explorer-mcp": {
-      "command": "mysql-schema-explorer-mcp",
+      "command": "./mysql-schema-explorer-mcp",
       "env": {
         "DB_HOST": "127.0.0.1",
         "DB_PORT": "13306",
