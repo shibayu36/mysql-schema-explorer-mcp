@@ -13,20 +13,20 @@ import (
 func main() {
 	dbConfig, err := loadDBConfig()
 	if err != nil {
-		log.Fatalf("設定の読み込みに失敗しました: %v", err)
+		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
 	sqlDB, err := connectDB(dbConfig)
 	if err != nil {
-		log.Fatalf("データベース接続に失敗しました: %v", err)
+		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer sqlDB.Close()
 
 	if err := sqlDB.Ping(); err != nil {
-		log.Fatalf("データベース接続確認に失敗しました: %v", err)
+		log.Fatalf("Failed to ping database: %v", err)
 	}
 
-	// DB操作層とハンドラーの初期化
+	// Initialize DB layer and handler
 	db := NewDB(sqlDB)
 	handler := NewHandler(db)
 
@@ -37,10 +37,10 @@ func main() {
 
 	listTables := mcp.NewTool(
 		"list_tables",
-		mcp.WithDescription("MySQLのデータベース内のテーブル情報を一覧で返す"),
+		mcp.WithDescription("Returns a list of table information in the specified MySQL database."),
 		mcp.WithString("dbName",
 			mcp.Required(),
-			mcp.Description("情報を取得するデータベース名"),
+			mcp.Description("The name of the database to retrieve information from."),
 		),
 	)
 
@@ -48,10 +48,10 @@ func main() {
 
 	describeTables := mcp.NewTool(
 		"describe_tables",
-		mcp.WithDescription("指定されたテーブルの詳細情報を返す"),
+		mcp.WithDescription("Returns detailed information for the specified tables."),
 		mcp.WithString("dbName",
 			mcp.Required(),
-			mcp.Description("情報を取得するデータベース名"),
+			mcp.Description("The name of the database to retrieve information from."),
 		),
 		mcp.WithArray(
 			"tableNames",
@@ -61,7 +61,7 @@ func main() {
 				},
 			),
 			mcp.Required(),
-			mcp.Description("詳細情報を取得するテーブル名(複数指定可能)"),
+			mcp.Description("The names of the tables to retrieve detailed information for (multiple names can be specified)."),
 		),
 	)
 
@@ -85,7 +85,7 @@ func loadDBConfig() (DBConfig, error) {
 
 	user := os.Getenv("DB_USER")
 	if user == "" {
-		return DBConfig{}, fmt.Errorf("DB_USER環境変数が設定されていません")
+		return DBConfig{}, fmt.Errorf("DB_USER environment variable is not set")
 	}
 
 	password := os.Getenv("DB_PASSWORD")

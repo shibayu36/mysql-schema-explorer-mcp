@@ -24,3 +24,5 @@
 go.work
 
 mysql-schema-explorer-mcp
+
+/.cursor

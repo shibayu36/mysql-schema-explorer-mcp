@@ -6,40 +6,41 @@ import (
 	"text/template"
 )
 
-// ListTablesData ListTables テンプレートに渡すデータ構造
+// ListTablesData is the data structure passed to the ListTables template
 type ListTablesData struct {
 	DBName string
 	Tables []TableSummary
 }
 
-// listTablesTemplate ListTables の出力フォーマット
-const listTablesTemplate = `データベース「{{.DBName}}」のテーブル一覧 (全{{len .Tables}}件)
-フォーマット: テーブル名 - テーブルコメント [PK: 主キー] [UK: 一意キー1; 一意キー2...] [FK: 外部キー -> 参照先テーブル.カラム; ...]
-※ 複合キー（複数カラムで構成されるキー）は括弧でグループ化: (col1, col2)
-※ 複数の異なるキー制約はセミコロンで区切り: key1; key2
+// listTablesTemplate is the output format for ListTables
+const listTablesTemplate = `Tables in database "{{.DBName}}" (Total: {{len .Tables}})
+Format: Table Name - Table Comment [PK: Primary Key] [UK: Unique Key 1; Unique Key 2...] [FK: Foreign Key -> Referenced Table.Column; ...]
+* Composite keys (keys composed of multiple columns) are grouped in parentheses: (col1, col2)
+* Multiple different key constraints are separated by semicolons: key1; key2
 
 {{range .Tables -}}
 - {{.Name}} - {{.Comment}}{{if len .PK}} [PK: {{formatPK .PK}}]{{end}}{{if len .UK}} [UK: {{formatUK .UK}}]{{end}}{{if len .FK}} [FK: {{formatFK .FK}}]{{end}}
 {{end -}}
 `
 
-// TableDetail 個々のテーブルの詳細情報 (db.go の型を使用)
+// TableDetail holds detailed information for individual tables (uses types from db.go)
 type TableDetail struct {
 	Name        string
 	Comment     string
-	Columns     []ColumnInfo // db.go の ColumnInfo
-	PrimaryKeys []string     // string スライス
-	UniqueKeys  []UniqueKey  // db.go の UniqueKey
-	ForeignKeys []ForeignKey // db.go の ForeignKey
-	Indexes     []IndexInfo  // db.go の IndexInfo
+	Columns     []ColumnInfo
+	PrimaryKeys []string
+	UniqueKeys  []UniqueKey
+	ForeignKeys []ForeignKey
+	Indexes     []IndexInfo
 }
 
-const describeTableDetailTemplate = `# テーブル: {{.Name}}{{if .Comment}} - {{.Comment}}{{end}}
+// describeTableDetailTemplate is the output format for describe_tables
+const describeTableDetailTemplate = `# Table: {{.Name}}{{if .Comment}} - {{.Comment}}{{end}}
 
-## カラム{{range .Columns}}
+## Columns{{range .Columns}}
 {{formatColumn .}}{{end}}
 
-## キー情報{{if .PrimaryKeys}}
+## Key Information{{if .PrimaryKeys}}
 [PK: {{formatPK .PrimaryKeys}}]{{end}}{{if .UniqueKeys}}
 [UK: {{formatUK .UniqueKeys}}]{{end}}{{if .ForeignKeys}}
 [FK: {{formatFK .ForeignKeys}}]{{end}}{{if .Indexes}}
@@ -54,7 +55,7 @@ var funcMap = template.FuncMap{
 	"formatIndex":  formatIndex,
 }
 
-// formatPK は主キー情報をフォーマットします
+// formatPK formats primary key information
 func formatPK(pk []string) string {
 	if len(pk) == 0 {
 		return ""
@@ -66,7 +67,7 @@ func formatPK(pk []string) string {
 	return pkStr
 }
 
-// formatUK は一意キー情報をフォーマットします
+// formatUK formats unique key information
 func formatUK(uk []UniqueKey) string {
 	if len(uk) == 0 {
 		return ""
@@ -82,7 +83,7 @@ func formatUK(uk []UniqueKey) string {
 	return strings.Join(ukInfo, "; ")
 }
 
-// formatFK は外部キー情報をフォーマットします
+// formatFK formats foreign key information
 func formatFK(fk []ForeignKey) string {
 	if len(fk) == 0 {
 		return ""
@@ -108,7 +109,7 @@ func formatFK(fk []ForeignKey) string {
 	return strings.Join(fkInfo, "; ")
 }
 
-// formatColumn はカラム情報をフォーマットします
+// formatColumn formats column information
 func formatColumn(col ColumnInfo) string {
 	nullable := "NOT NULL"
 	if col.IsNullable == "YES" {

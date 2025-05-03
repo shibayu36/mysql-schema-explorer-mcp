@@ -1,93 +1,93 @@
-# Model Context Protocol (MCP) Server実装ガイド
+# Model Context Protocol (MCP) Server Implementation Guide
 
-## MCP概要
+## What is MCP?
 
-Model Context Protocol（MCP）は、AI言語モデル（LLM）と外部データソースやツールを標準化された方法で接続するためのオープンプロトコルです。LLMアプリケーションと外部ツールの間のプラグインシステムとして機能し、データソースへのシームレスなアクセスを提供します。
+The Model Context Protocol (MCP) is an open protocol. It connects AI language models (LLMs) with external data sources and tools in a standard way. It acts like a plugin system between LLM applications and external tools, giving seamless access to data sources.
 
-## 基本アーキテクチャ
+## Basic Architecture
 
-MCPはクライアント-サーバーモデルに基づいています：
+MCP uses a client-server model:
 
-- **MCPサーバー**: データソースやツールへのアクセスを提供する軽量プログラム
-- **MCPホスト/クライアント**: Claude DesktopなどのLLMアプリケーションで、MCPサーバーに接続して機能を利用
+-   **MCP Server**: A lightweight program that provides access to data sources or tools.
+-   **MCP Host/Client**: An LLM application like Claude Desktop. It connects to MCP servers to use their features.
 
-## MCPサーバーの主な機能
+## Main Features of an MCP Server
 
-MCPサーバーは以下の3つの主要な機能タイプを提供できます：
+MCP servers can offer three main types of features:
 
-1. **ツール（Tools）**: LLMから呼び出し可能な関数（ユーザー承認付き）
-2. **リソース（Resources）**: クライアントが読み取り可能なファイル形式のデータ（APIレスポンスやファイル内容など）
-3. **プロンプト（Prompts）**: 特定のタスク実行に役立つ定型テンプレート
+1.  **Tools**: Functions that the LLM can call (with user approval).
+2.  **Resources**: Data in a file-like format that the client can read (like API responses or file content).
+3.  **Prompts**: Standard templates that help with specific tasks.
 
-## 通信プロトコル
+## Communication Protocols
 
-MCPサーバーは以下の通信方式をサポートしています：
+MCP servers support these communication methods:
 
-- **標準入出力（stdio）**: ローカル開発に適したシンプルな方式
-- **Server-Sent Events (SSE)**: より柔軟性の高い分散チーム向けの方式
-- **WebSockets**: リアルタイム双方向通信向け
+-   **Standard Input/Output (stdio)**: A simple method suitable for local development.
+-   **Server-Sent Events (SSE)**: A more flexible method for distributed teams.
+-   **WebSockets**: For real-time, two-way communication.
 
-## 実装に必要な要素
+## What You Need to Build
 
-### 1. 基本構造
+### 1. Basic Structure
 
-MCPサーバーの実装には以下の要素が必要です：
+To implement an MCP server, you need these elements:
 
-- サーバー初期化とトランスポート設定
-- ツール/リソース/プロンプトの定義
-- リクエストハンドラーの実装
-- メインサーバー実行関数
+-   Server initialization and transport setup.
+-   Definitions for tools, resources, or prompts.
+-   Implementation of request handlers.
+-   The main function to run the server.
 
-### 2. サーバーの設定
+### 2. Server Configuration
 
-サーバーの設定には以下の情報が含まれます：
+The server configuration includes this information:
 
 ```json
 {
   "mcpServers": {
     "myserver": {
-      "command": "実行コマンド",
-      "args": ["引数1", "引数2"],
+      "command": "command_to_execute",
+      "args": ["arg1", "arg2"],
       "env": {
-        "環境変数名": "値"
+        "ENV_VAR_NAME": "value"
       }
     }
   }
 }
 ```
 
-## 言語別実装方法の概要
+## How to Implement in Different Languages
 
-MCPサーバーは様々なプログラミング言語で実装可能です：
+You can implement MCP servers in various programming languages:
 
 ### Python
 
 ```python
-# 必要なライブラリをインストール
+# Install necessary libraries
 # pip install mcp[cli]
 
 import asyncio
 import mcp
 from mcp.server import NotificationOptions, InitializationOptions
 
-# ツール定義例
-@mcp.server.tool("ツール名", "ツールの説明")
+# Example tool definition
+@mcp.server.tool("tool_name", "Description of the tool")
 async def some_tool(param1: str, param2: int) -> str:
-    # ツールのロジックを実装
-    return "結果"
+    # Implement the tool's logic
+    return "Result"
 
-# サーバー初期化
+# Initialize the server
 server = mcp.server.Server()
 
-# メイン関数
+# Main function
 async def main():
-    # stdin/stdoutストリームでサーバーを実行
+    # Run the server with stdin/stdout streams
     async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
         await server.run(
-            read_stream, write_stream, 
+            read_stream, write_stream,
             InitializationOptions(
-                server_name="サーバー名",
-                server_version="バージョン",
+                server_name="Server Name",
+                server_version="Version",
                 capabilities=server.get_capabilities(
                     notification_options=NotificationOptions(),
                     experimental_capabilities={},
@@ -102,94 +102,94 @@ if __name__ == "__main__":
 ### TypeScript/JavaScript
 
 ```typescript
-// 必要なライブラリをインストール
+// Install necessary libraries
 // npm install @modelcontextprotocol/sdk
 
 import { Server, StdioServerTransport } from "@modelcontextprotocol/sdk";
 
-// サーバーインスタンス作成
+// Create a server instance
 const server = new Server();
 
-// ツール定義
+// Define a tool
 const myTool = {
-  name: "ツール名",
-  description: "ツールの説明",
+  name: "tool_name",
+  description: "Description of the tool",
   parameters: {
-    // パラメータ定義
+    // Define parameters
   },
   execute: async (params) => {
-    // ツールのロジック実装
-    return { result: "結果" };
+    // Implement the tool's logic
+    return { result: "Result" };
   }
 };
 
-// ツール登録
+// Register the tool
 server.tools.registerTool(myTool);
 
-// メイン関数
+// Main function
 async function main() {
-  // トランスポート設定
+  // Set up transport
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("サーバー実行中");
+  console.error("Server running");
 }
 
 main().catch((error) => {
-  console.error("エラー:", error);
+  console.error("Error:", error);
   process.exit(1);
 });
 ```
 
-## セキュリティ考慮事項
+## Security Points to Consider
 
-MCPサーバー実装時は以下のセキュリティ面を考慮する必要があります：
+When implementing an MCP server, consider these security aspects:
 
-- **アクセス制御**: サーバーが公開するデータやツールへのアクセス制限
-- **認証**: クライアントの認証メカニズム
-- **データ保護**: 機密データの適切な取り扱い
-- **リソース制限**: DoS攻撃防止のためのリソース使用制限
+-   **Access Control**: Limit access to the data and tools the server exposes.
+-   **Authentication**: Mechanisms to verify the client.
+-   **Data Protection**: Handle sensitive data properly.
+-   **Resource Limiting**: Limit resource usage to prevent Denial of Service (DoS) attacks.
 
-## ベストプラクティス
+## Best Practices
 
-1. **明確なドキュメント**: 各ツール、リソース、プロンプトに詳細な説明を提供
-2. **エラーハンドリング**: 適切なエラーメッセージとステータスコードを返す
-3. **バージョニング**: 互換性のためのAPIバージョン管理
-4. **テスト**: 単体テストと統合テストの実施
-5. **ログ記録**: デバッグと監査のためのログ機能実装
+1.  **Clear Documentation**: Provide detailed descriptions for each tool, resource, and prompt.
+2.  **Error Handling**: Return appropriate error messages and status codes.
+3.  **Versioning**: Manage API versions for compatibility.
+4.  **Testing**: Perform unit tests and integration tests.
+5.  **Logging**: Implement logging for debugging and auditing.
 
-## 既存のMCPサーバー例
+## Examples of Existing MCP Servers
 
-- **ファイルシステム**: ファイル操作のためのセキュアなサーバー
-- **PostgreSQL**: データベースアクセス用サーバー
-- **GitHub**: リポジトリ管理やIssue管理機能を提供
-- **Brave Search**: ウェブ検索機能を提供
+-   **File System**: A secure server for file operations.
+-   **PostgreSQL**: A server for database access.
+-   **GitHub**: Provides features for repository and issue management.
+-   **Brave Search**: Offers web search functionality.
 
-## Claude Desktopとの接続
+## Connecting with Claude Desktop
 
-MCPサーバーをClaude Desktopと接続するには：
+To connect your MCP server with Claude Desktop:
 
-1. Claude Desktopをインストール
-2. `~/Library/Application Support/Claude/claude_desktop_config.json`を編集
-3. `mcpServers`セクションに自作サーバーを追加
+1.  Install Claude Desktop.
+2.  Edit `~/Library/Application Support/Claude/claude_desktop_config.json`.
+3.  Add your custom server to the `mcpServers` section.
 
 ```json
 {
   "mcpServers": {
     "myserver": {
-      "command": "実行コマンド",
-      "args": ["引数1", "引数2"]
+      "command": "command_to_execute",
+      "args": ["arg1", "arg2"]
     }
   }
 }
 ```
 
-## デバッグとトラブルシューティング
+## Debugging and Troubleshooting
 
-1. **ログ出力**: 詳細なデバッグ情報を記録
-2. **段階的テスト**: 基本機能から複雑な機能へ順次テスト
-3. **エラーコード**: 明確なエラーコードとメッセージを実装
-4. **MCP Inspector**: デバッグツールを利用した動作確認
+1.  **Log Output**: Record detailed debug information.
+2.  **Step-by-Step Testing**: Test from basic features to complex ones.
+3.  **Error Codes**: Implement clear error codes and messages.
+4.  **MCP Inspector**: Use debugging tools to check behavior.
 
-## まとめ
+## Summary
 
-MCPサーバーの実装により、さまざまなデータソースやツールをLLMに接続できます。これによりAIアシスタントの機能を拡張し、より豊かなユーザーエクスペリエンスを提供することが可能になります。
+Implementing an MCP server allows you to connect various data sources and tools to LLMs. This extends the capabilities of AI assistants and can provide a richer user experience.

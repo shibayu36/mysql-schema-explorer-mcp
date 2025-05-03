@@ -1,30 +1,30 @@
 # MySQL Schema MCP Server
 
-MySQLデータベースのスキーマ情報を圧縮して提供するModel Context Protocol (MCP) サーバーです。
-規模の大きいデータベーススキーマを使っているためにスキーマダンプファイルがコンテキストサイズに載らない場合に、このMCPサーバーが有用です。
+This is a Model Context Protocol (MCP) server that provides compressed schema information for MySQL databases.
+This MCP server is useful when the schema dump file does not fit in the context size because you are using a large database schema.
 
-https://github.com/user-attachments/assets/f81b2513-31bd-4a60-9b54-45f76323d112
+https://github.com/user-attachments/assets/0cecef84-cd70-4f84-95cb-01c6ec7c9ac7
 
-## 提供するツール
+## Provided Tools
 
-- テーブル一覧の取得 (`list_tables`)
-  - 指定したデータベース内のすべてのテーブル情報を一覧表示します。テーブル名、コメント、主キー、一意キー、外部キー情報などが含まれます。
-  - パラメータ
-    - `dbName`: 情報を取得するデータベース名
-- テーブル詳細の取得 (`describe_tables`)
-  - 指定したデータベースの特定テーブルの詳細情報を表示します。カラム定義、キー制約、インデックスなどの情報を整形して提供します。
-  - パラメータ
-    - `dbName`: 情報を取得するデータベース名
-    - `tableNames`: 詳細情報を取得するテーブル名の配列
+- List Tables (`list_tables`)
+  - Lists all table information in the specified database. Includes table name, comment, primary key, unique key, and foreign key information.
+  - Parameters
+    - `dbName`: The name of the database to retrieve information from.
+- Describe Tables (`describe_tables`)
+  - Displays detailed information for specific tables in the specified database. Provides formatted information such as column definitions, key constraints, and indexes.
+  - Parameters
+    - `dbName`: The name of the database to retrieve information from.
+    - `tableNames`: An array of table names to retrieve detailed information for.
 
-## クイックスタート
-1. コマンドをインストール
+## Quick Start
+1. Install the command
 
     ```
     go install github.com/shibayu36/mysql-schema-explorer-mcp@latest
     ```
 
-2. mcp.jsonを設定
+2. Configure mcp.json
 
     ```json
     {
@@ -42,6 +42,6 @@ https://github.com/user-attachments/assets/f81b2513-31bd-4a60-9b54-45f76323d112
     }
     ```
 
-3. エージェントを利用してSQL生成を実行
+3. Execute SQL generation using the agent
 
-    例: ecshopデータベースの構造を使って、ユーザー名がshibayu36が最近注文した商品名3つを出して
+    Example: Using the structure of the ecshop database, list the names of the 3 most recently ordered products by the user shibayu36.
