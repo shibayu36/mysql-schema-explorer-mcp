@@ -37,15 +37,15 @@ func TestListTables(t *testing.T) {
 	require.NoError(t, err, "handler.ListTables should not return an error")
 	require.NotNil(t, result, "handler.ListTables should return a result")
 
-	expectedOutput := `データベース「` + testDBName + `」のテーブル一覧 (全4件)
-フォーマット: テーブル名 - テーブルコメント [PK: 主キー] [UK: 一意キー1; 一意キー2...] [FK: 外部キー -> 参照先テーブル.カラム; ...]
-※ 複合キー（複数カラムで構成されるキー）は括弧でグループ化: (col1, col2)
-※ 複数の異なるキー制約はセミコロンで区切り: key1; key2
+	expectedOutput := `Tables in database "` + testDBName + `" (Total: 4)
+Format: Table Name - Table Comment [PK: Primary Key] [UK: Unique Key 1; Unique Key 2...] [FK: Foreign Key -> Referenced Table.Column; ...]
+* Composite keys (keys composed of multiple columns) are grouped in parentheses: (col1, col2)
+* Multiple different key constraints are separated by semicolons: key1; key2
 
-- order_items - 注文明細 [PK: (order_id, item_seq)] [UK: (order_id, product_maker, product_internal_code)] [FK: order_id -> orders.id; (product_maker, product_internal_code) -> products.(maker_code, internal_code)]
-- orders - 注文ヘッダー [PK: id] [FK: user_id -> users.id]
-- products - 商品マスター [PK: product_code] [UK: (maker_code, internal_code)]
-- users - ユーザー情報 [PK: id] [UK: email; (tenant_id, employee_id); username]
+- order_items - Order details [PK: (order_id, item_seq)] [UK: (order_id, product_maker, product_internal_code)] [FK: order_id -> orders.id; (product_maker, product_internal_code) -> products.(maker_code, internal_code)]
+- orders - Order header [PK: id] [FK: user_id -> users.id]
+- products - Product master [PK: product_code] [UK: (maker_code, internal_code)]
+- users - User information [PK: id] [UK: email; (tenant_id, employee_id); username]
 `
 	textContent := result.Content[0].(mcp.TextContent).Text
 	assert.Equal(t, expectedOutput, textContent, "Output content should match the expected format")
@@ -75,46 +75,46 @@ func TestDescribeTables(t *testing.T) {
 		},
 	}
 
-	expectedOutput := `# テーブル: users - ユーザー情報
+	expectedOutput := `# Table: users - User information
 
-## カラム
-- id: int NOT NULL [ユーザーシステムID]
-- email: varchar(255) NOT NULL [メールアドレス]
-- username: varchar(255) NOT NULL [ユーザー名]
-- tenant_id: int NOT NULL [テナントID]
-- employee_id: int NOT NULL [従業員ID]
+## Columns
+- id: int NOT NULL [User system ID]
+- email: varchar(255) NOT NULL [Email address]
+- username: varchar(255) NOT NULL [Username]
+- tenant_id: int NOT NULL [Tenant ID]
+- employee_id: int NOT NULL [Employee ID]
 
-## キー情報
+## Key Information
 [PK: id]
 [UK: email; (tenant_id, employee_id); username]
 
 ---
 
-# テーブル: products - 商品マスター
+# Table: products - Product master
 
-## カラム
-- product_code: varchar(50) NOT NULL [商品コード（主キー）]
-- maker_code: varchar(50) NOT NULL [メーカーコード]
-- internal_code: varchar(50) NOT NULL [社内商品コード]
-- product_name: varchar(255) NULL [商品名]
+## Columns
+- product_code: varchar(50) NOT NULL [Product code (Primary Key)]
+- maker_code: varchar(50) NOT NULL [Maker code]
+- internal_code: varchar(50) NOT NULL [Internal product code]
+- product_name: varchar(255) NULL [Product name]
 
-## キー情報
+## Key Information
 [PK: product_code]
 [UK: (maker_code, internal_code)]
 [INDEX: (maker_code, product_name); product_name]
 
 ---
 
-# テーブル: order_items - 注文明細
+# Table: order_items - Order details
 
-## カラム
-- order_id: int NOT NULL [注文ID (FK)]
-- item_seq: int NOT NULL [注文明細連番]
-- product_maker: varchar(50) NOT NULL [商品メーカーコード (FK)]
-- product_internal_code: varchar(50) NOT NULL [商品社内コード (FK)]
-- quantity: int NOT NULL [数量]
+## Columns
+- order_id: int NOT NULL [Order ID (FK)]
+- item_seq: int NOT NULL [Order item sequence number]
+- product_maker: varchar(50) NOT NULL [Product maker code (FK)]
+- product_internal_code: varchar(50) NOT NULL [Product internal code (FK)]
+- quantity: int NOT NULL [Quantity]
 
-## キー情報
+## Key Information
 [PK: (order_id, item_seq)]
 [UK: (order_id, product_maker, product_internal_code)]
 [FK: order_id -> orders.id; (product_maker, product_internal_code) -> products.(maker_code, internal_code)]

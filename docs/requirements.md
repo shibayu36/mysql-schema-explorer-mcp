@@ -17,15 +17,15 @@
 - 引数: dbName (string) - 情報を取得するデータベース名
 - 戻り値: テーブル名とテーブルコメント、キー情報のリスト（テキスト形式）
 - 出力フォーマット:
-  ```
-  データベース「DB_NAME」のテーブル一覧 (全X件)
-  フォーマット: テーブル名 - テーブルコメント [PK: 主キー] [UK: 一意キー1; 一意キー2...] [FK: 外部キー -> 参照先テーブル.カラム; ...]
-  ※ 複合キー（複数カラムで構成されるキー）は括弧でグループ化: (col1, col2)
-  ※ 複数の異なるキー制約はセミコロンで区切り: key1; key2
-  
-  - users - ユーザー情報 [PK: id] [UK: email; username] [FK: role_id -> roles.id; department_id -> departments.id]
-  - posts - 投稿情報 [PK: id] [UK: slug] [FK: user_id -> users.id; category_id -> categories.id]
-  - order_items - 注文商品 [PK: (order_id, item_id)] [FK: (order_id, item_id) -> orders.(id, item_id); product_id -> products.id]
+  ```text
+  Tables in database "DB_NAME" (Total: X)
+  Format: Table Name - Table Comment [PK: Primary Key] [UK: Unique Key 1; Unique Key 2...] [FK: Foreign Key -> Referenced Table.Column; ...]
+  * Composite keys (keys composed of multiple columns) are grouped in parentheses: (col1, col2)
+  * Multiple different key constraints are separated by semicolons: key1; key2
+
+  - users - User information [PK: id] [UK: email; username] [FK: role_id -> roles.id; department_id -> departments.id]
+  - posts - Post information [PK: id] [UK: slug] [FK: user_id -> users.id; category_id -> categories.id]
+  - order_items - Order items [PK: (order_id, item_id)] [FK: (order_id, item_id) -> orders.(id, item_id); product_id -> products.id]
   ```
 
 2. **テーブル詳細を取得**
@@ -36,18 +36,18 @@
   - tableNames（string配列）- 詳細情報を取得するテーブル名（複数指定可能）
 - 戻り値: 各テーブルの詳細情報を整形したテキスト
 - 出力フォーマット:
-  ```
-  # テーブル: order_items - 注文商品
+  ```text
+  # Table: order_items - Order Items
 
-  ## カラム
-  - order_id: int(11) NOT NULL [注文ID]
-  - item_id: int(11) NOT NULL [商品ID]
-  - product_id: int(11) NOT NULL [製品ID]
-  - quantity: int(11) NOT NULL [数量]
-  - price: decimal(10,2) NOT NULL [価格]
-  - user_id: int(11) NOT NULL [ユーザーID]
+  ## Columns
+  - order_id: int(11) NOT NULL [Order ID]
+  - item_id: int(11) NOT NULL [Item ID]
+  - product_id: int(11) NOT NULL [Product ID]
+  - quantity: int(11) NOT NULL [Quantity]
+  - price: decimal(10,2) NOT NULL [Price]
+  - user_id: int(11) NOT NULL [User ID]
 
-  ## キー情報
+  ## Key Information
   [PK: (order_id, item_id)]
   [UK: (user_id, product_id)]
   [FK: (order_id, item_id) -> orders.(id, item_id); product_id -> products.id; user_id -> users.id]
@@ -55,16 +55,16 @@
 
   ---
 
-  # テーブル: users - ユーザー情報
+  # Table: users - User Information
 
-  ## カラム
-  - id: int(11) NOT NULL [ユーザーID]
-  - username: varchar(50) NOT NULL [ユーザー名]
-  - email: varchar(100) NOT NULL [メールアドレス]
-  - password: varchar(255) NOT NULL [パスワード]
-  - created_at: timestamp NULL DEFAULT CURRENT_TIMESTAMP [作成日時]
+  ## Columns
+  - id: int(11) NOT NULL [User ID]
+  - username: varchar(50) NOT NULL [Username]
+  - email: varchar(100) NOT NULL [Email Address]
+  - password: varchar(255) NOT NULL [Password]
+  - created_at: timestamp NULL DEFAULT CURRENT_TIMESTAMP [Created At]
 
-  ## キー情報
+  ## Key Information
   [PK: id]
   [UK: email; username]
   [INDEX: created_at]

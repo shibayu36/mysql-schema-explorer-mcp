@@ -13,10 +13,10 @@ type ListTablesData struct {
 }
 
 // listTablesTemplate is the output format for ListTables
-const listTablesTemplate = `データベース「{{.DBName}}」のテーブル一覧 (全{{len .Tables}}件)
-フォーマット: テーブル名 - テーブルコメント [PK: 主キー] [UK: 一意キー1; 一意キー2...] [FK: 外部キー -> 参照先テーブル.カラム; ...]
-※ 複合キー（複数カラムで構成されるキー）は括弧でグループ化: (col1, col2)
-※ 複数の異なるキー制約はセミコロンで区切り: key1; key2
+const listTablesTemplate = `Tables in database "{{.DBName}}" (Total: {{len .Tables}})
+Format: Table Name - Table Comment [PK: Primary Key] [UK: Unique Key 1; Unique Key 2...] [FK: Foreign Key -> Referenced Table.Column; ...]
+* Composite keys (keys composed of multiple columns) are grouped in parentheses: (col1, col2)
+* Multiple different key constraints are separated by semicolons: key1; key2
 
 {{range .Tables -}}
 - {{.Name}} - {{.Comment}}{{if len .PK}} [PK: {{formatPK .PK}}]{{end}}{{if len .UK}} [UK: {{formatUK .UK}}]{{end}}{{if len .FK}} [FK: {{formatFK .FK}}]{{end}}
@@ -34,12 +34,13 @@ type TableDetail struct {
 	Indexes     []IndexInfo
 }
 
-const describeTableDetailTemplate = `# テーブル: {{.Name}}{{if .Comment}} - {{.Comment}}{{end}}
+// describeTableDetailTemplate is the output format for describe_tables
+const describeTableDetailTemplate = `# Table: {{.Name}}{{if .Comment}} - {{.Comment}}{{end}}
 
-## カラム{{range .Columns}}
+## Columns{{range .Columns}}
 {{formatColumn .}}{{end}}
 
-## キー情報{{if .PrimaryKeys}}
+## Key Information{{if .PrimaryKeys}}
 [PK: {{formatPK .PrimaryKeys}}]{{end}}{{if .UniqueKeys}}
 [UK: {{formatUK .UniqueKeys}}]{{end}}{{if .ForeignKeys}}
 [FK: {{formatFK .ForeignKeys}}]{{end}}{{if .Indexes}}
