@@ -16,9 +16,9 @@ type DBConfig struct {
 type TableSummary struct {
 	Name    string
 	Comment string
-	PK      []string     // 主キーカラム
-	UK      []UniqueKey  // 一意キー情報
-	FK      []ForeignKey // 外部キー情報
+	PK      []string     // Primary key columns
+	UK      []UniqueKey  // Unique key information
+	FK      []ForeignKey // Foreign key information
 }
 
 type UniqueKey struct {
@@ -67,14 +67,14 @@ func connectDB(config DBConfig) (*sql.DB, error) {
 	return conn, nil
 }
 
-// FetchAllTableSummaries データベース内の全てのテーブルのサマリー情報を取得
+// FetchAllTableSummaries gets summary information for all tables in the database
 func (db *DB) FetchAllTableSummaries(ctx context.Context, dbName string) ([]TableSummary, error) {
 	tables, err := db.FetchTableWithComments(ctx, dbName)
 	if err != nil {
 		return nil, err
 	}
 
-	// 各テーブルの追加情報を取得
+	// Get additional information for each table
 	for i := range tables {
 		tables[i].PK, err = db.FetchPrimaryKeys(ctx, dbName, tables[i].Name)
 		if err != nil {
@@ -95,7 +95,7 @@ func (db *DB) FetchAllTableSummaries(ctx context.Context, dbName string) ([]Tabl
 	return tables, nil
 }
 
-// FetchTableWithComments テーブル名とコメントを取得
+// FetchTableWithComments gets table names and comments
 func (db *DB) FetchTableWithComments(ctx context.Context, dbName string) ([]TableSummary, error) {
 	query := `
 		SELECT 
@@ -131,7 +131,7 @@ func (db *DB) FetchTableWithComments(ctx context.Context, dbName string) ([]Tabl
 	return tables, nil
 }
 
-// FetchPrimaryKeys テーブルの主キーカラムを取得
+// FetchPrimaryKeys gets the primary key columns of a table
 func (db *DB) FetchPrimaryKeys(ctx context.Context, dbName string, tableName string) ([]string, error) {
 	query := `
 		SELECT 
@@ -168,7 +168,7 @@ func (db *DB) FetchPrimaryKeys(ctx context.Context, dbName string, tableName str
 	return primaryKeys, nil
 }
 
-// FetchUniqueKeys テーブルの一意キー制約を取得
+// FetchUniqueKeys gets the unique key constraints of a table
 func (db *DB) FetchUniqueKeys(ctx context.Context, dbName string, tableName string) ([]UniqueKey, error) {
 	query := `
 		SELECT 
@@ -197,7 +197,7 @@ func (db *DB) FetchUniqueKeys(ctx context.Context, dbName string, tableName stri
 	}
 	defer rows.Close()
 
-	// SQL取得の順序を維持しながら情報を構築する
+	// Build information while maintaining the order of SQL acquisition
 	var uniqueKeys []UniqueKey
 	var currentUniqueKey *UniqueKey
 	for rows.Next() {
@@ -207,7 +207,7 @@ func (db *DB) FetchUniqueKeys(ctx context.Context, dbName string, tableName stri
 		}
 
 		if currentUniqueKey == nil || currentUniqueKey.Name != constraintName {
-			// 一つ目、もしくは別のUKに切り替わった時
+			// When it's the first one, or when switching to another UK
 			newUK := UniqueKey{
 				Name:    constraintName,
 				Columns: []string{},
@@ -216,7 +216,7 @@ func (db *DB) FetchUniqueKeys(ctx context.Context, dbName string, tableName stri
 			currentUniqueKey = &uniqueKeys[len(uniqueKeys)-1]
 		}
 
-		// 同じ制約名の場合、現在のUniqueKeyのColumnsに追加
+		// If the constraint name is the same, add to the Columns of the current UniqueKey
 		currentUniqueKey.Columns = append(currentUniqueKey.Columns, columnName)
 	}
 
@@ -227,7 +227,7 @@ func (db *DB) FetchUniqueKeys(ctx context.Context, dbName string, tableName stri
 	return uniqueKeys, nil
 }
 
-// FetchForeignKeys テーブルの外部キー制約を取得
+// FetchForeignKeys gets the foreign key constraints of a table
 func (db *DB) FetchForeignKeys(ctx context.Context, dbName string, tableName string) ([]ForeignKey, error) {
 	query := `
 		SELECT 
@@ -257,7 +257,7 @@ func (db *DB) FetchForeignKeys(ctx context.Context, dbName string, tableName str
 	}
 	defer rows.Close()
 
-	// SQL取得の順序を維持しながら情報を構築する
+	// Build information while maintaining the order of SQL acquisition
 	var foreignKeys []ForeignKey
 	var currentFK *ForeignKey
 	for rows.Next() {
@@ -285,7 +285,7 @@ func (db *DB) FetchForeignKeys(ctx context.Context, dbName string, tableName str
 	return foreignKeys, nil
 }
 
-// FetchTableColumns テーブルのカラム情報を取得
+// FetchTableColumns gets the column information of a table
 func (db *DB) FetchTableColumns(ctx context.Context, dbName string, tableName string) ([]ColumnInfo, error) {
 	query := `
 		SELECT 
@@ -325,7 +325,7 @@ func (db *DB) FetchTableColumns(ctx context.Context, dbName string, tableName st
 	return columns, nil
 }
 
-// FetchTableIndexes はテーブルのインデックス情報を取得するメソッド
+// FetchTableIndexes gets the index information of a table
 func (db *DB) FetchTableIndexes(ctx context.Context, dbName string, tableName string) ([]IndexInfo, error) {
 	query := `
 		SELECT 
@@ -356,7 +356,7 @@ func (db *DB) FetchTableIndexes(ctx context.Context, dbName string, tableName st
 	}
 	defer rows.Close()
 
-	// SQL取得の順序を維持しながら情報を構築する
+	// Build information while maintaining the order of SQL acquisition
 	var indexes []IndexInfo
 	var currentIdx *IndexInfo
 	for rows.Next() {

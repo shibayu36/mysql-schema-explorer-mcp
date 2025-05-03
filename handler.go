@@ -9,7 +9,7 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
-// Handler MCPハンドラーを実装する構造体
+// Handler struct implements the MCP handler
 type Handler struct {
 	db *DB
 }
@@ -18,69 +18,69 @@ func NewHandler(db *DB) *Handler {
 	return &Handler{db: db}
 }
 
-// ListTables 全てのテーブルのサマリー情報を返す
+// ListTables returns summary information for all tables
 func (h *Handler) ListTables(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	dbNameRaw, ok := request.Params.Arguments["dbName"]
 	if !ok {
-		return mcp.NewToolResultError("データベース名が指定されていません"), nil
+		return mcp.NewToolResultError("Database name is not specified"), nil
 	}
 
 	dbName, ok := dbNameRaw.(string)
 	if !ok || dbName == "" {
-		return mcp.NewToolResultError("データベース名が正しく指定されていません"), nil
+		return mcp.NewToolResultError("Database name is not specified correctly"), nil
 	}
 
-	// テーブル情報の取得
+	// Get table information
 	tables, err := h.db.FetchAllTableSummaries(ctx, dbName)
 	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("テーブル情報の取得に失敗しました: %v", err)), nil
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to get table information: %v", err)), nil
 	}
 
-	// テーブルが見つからない
+	// No tables found
 	if len(tables) == 0 {
-		return mcp.NewToolResultText("データベース内にテーブルが存在しません。"), nil
+		return mcp.NewToolResultText("No tables exist in the database."), nil
 	}
 
-	// 出力の作成
+	// Create output
 	var output bytes.Buffer
 	{
 		tmpl, err := template.New("listTables").Funcs(funcMap).Parse(listTablesTemplate)
 		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("テンプレートの解析に失敗しました: %v", err)), nil
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to parse template: %v", err)), nil
 		}
 
 		if err := tmpl.Execute(&output, ListTablesData{
 			DBName: dbName,
 			Tables: tables,
 		}); err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("テンプレートの実行に失敗しました: %v", err)), nil
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to execute template: %v", err)), nil
 		}
 	}
 
 	return mcp.NewToolResultText(output.String()), nil
 }
 
-// DescribeTables は指定されたテーブルの詳細情報を返すハンドラーメソッド
+// DescribeTables is a handler method that returns detailed information for the specified tables
 func (h *Handler) DescribeTables(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	// dbNameパラメータを取得
+	// Get dbName parameter
 	dbNameRaw, ok := request.Params.Arguments["dbName"]
 	if !ok {
-		return mcp.NewToolResultError("データベース名が指定されていません"), nil
+		return mcp.NewToolResultError("Database name is not specified"), nil
 	}
 
 	dbName, ok := dbNameRaw.(string)
 	if !ok || dbName == "" {
-		return mcp.NewToolResultError("データベース名が正しく指定されていません"), nil
+		return mcp.NewToolResultError("Database name is not specified correctly"), nil
 	}
 
-	// テーブル名一覧を作成
+	// Create list of table names
 	tableNamesRaw, ok := request.Params.Arguments["tableNames"]
 	if !ok {
-		return mcp.NewToolResultError("テーブル名が指定されていません"), nil
+		return mcp.NewToolResultError("Table names are not specified"), nil
 	}
 	tableNamesInterface, ok := tableNamesRaw.([]interface{})
 	if !ok || len(tableNamesInterface) == 0 {
-		return mcp.NewToolResultError("テーブル名の配列が正しく指定されていません"), nil
+		return mcp.NewToolResultError("Array of table names is not specified correctly"), nil
 	}
 	var tableNames []string
 	for _, v := range tableNamesInterface {
@@ -89,29 +89,29 @@ func (h *Handler) DescribeTables(ctx context.Context, request mcp.CallToolReques
 		}
 	}
 	if len(tableNames) == 0 {
-		return mcp.NewToolResultError("有効なテーブル名が指定されていません"), nil
+		return mcp.NewToolResultError("No valid table names are specified"), nil
 	}
 
 	allTables, err := h.db.FetchAllTableSummaries(ctx, dbName)
 	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("テーブル情報の取得に失敗しました: %v", err)), nil
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to get table information: %v", err)), nil
 	}
 
-	// 出力の準備
+	// Prepare output
 	var output bytes.Buffer
 	tmpl, err := template.New("describeTableDetail").Funcs(funcMap).Parse(describeTableDetailTemplate)
 	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("テンプレートの解析に失敗しました: %v", err)), nil
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse template: %v", err)), nil
 	}
 
-	// すべてのテーブルに対して情報を取得
+	// Get information for all tables
 	for i, tableName := range tableNames {
-		// 2つ目以降のテーブルの前に区切り線を追加
+		// Add a separator line before the second and subsequent tables
 		if i > 0 {
 			output.WriteString("\n---\n\n")
 		}
 
-		// 指定されたテーブルを探す
+		// Find the specified table
 		var tableInfo TableSummary
 		var tableFound bool
 		for _, t := range allTables {
@@ -123,37 +123,37 @@ func (h *Handler) DescribeTables(ctx context.Context, request mcp.CallToolReques
 		}
 
 		if !tableFound {
-			output.WriteString(fmt.Sprintf("# テーブル: %s\nテーブルが見つかりません\n", tableName))
+			output.WriteString(fmt.Sprintf("# Table: %s\nTable not found\n", tableName))
 			continue
 		}
 
-		// テーブル詳細情報の取得
+		// Get table detail information
 		primaryKeys, err := h.db.FetchPrimaryKeys(ctx, dbName, tableName)
 		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("主キー情報の取得に失敗しました: %v", err)), nil
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to get primary key information: %v", err)), nil
 		}
 
 		uniqueKeys, err := h.db.FetchUniqueKeys(ctx, dbName, tableName)
 		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("一意キー情報の取得に失敗しました: %v", err)), nil
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to get unique key information: %v", err)), nil
 		}
 
 		foreignKeys, err := h.db.FetchForeignKeys(ctx, dbName, tableName)
 		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("外部キー情報の取得に失敗しました: %v", err)), nil
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to get foreign key information: %v", err)), nil
 		}
 
 		columns, err := h.db.FetchTableColumns(ctx, dbName, tableName)
 		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("カラム情報の取得に失敗しました: %v", err)), nil
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to get column information: %v", err)), nil
 		}
 
 		indexes, err := h.db.FetchTableIndexes(ctx, dbName, tableName)
 		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("インデックス情報の取得に失敗しました: %v", err)), nil
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to get index information: %v", err)), nil
 		}
 
-		// テンプレートに渡すデータを作成
+		// Create data to pass to the template
 		tableDetail := TableDetail{
 			Name:        tableName,
 			Comment:     tableInfo.Comment,
@@ -164,9 +164,9 @@ func (h *Handler) DescribeTables(ctx context.Context, request mcp.CallToolReques
 			Indexes:     indexes,
 		}
 
-		// テンプレートを実行してバッファに書き込む
+		// Execute the template and write to the buffer
 		if err := tmpl.Execute(&output, tableDetail); err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("テンプレートの実行に失敗しました: %v", err)), nil
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to execute template: %v", err)), nil
 		}
 	}
 

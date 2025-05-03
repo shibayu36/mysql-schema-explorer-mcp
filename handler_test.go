@@ -23,7 +23,7 @@ func TestListTables(t *testing.T) {
 				ProgressToken mcp.ProgressToken `json:"progressToken,omitempty"`
 			} `json:"_meta,omitempty"`
 		}{
-			// Name: "ListTables", // 必要に応じてツール名を設定
+			// Name: "ListTables", // Set tool name if necessary
 			Arguments: map[string]interface{}{
 				"dbName": testDBName,
 			},
@@ -53,7 +53,7 @@ func TestListTables(t *testing.T) {
 
 func TestDescribeTables(t *testing.T) {
 	// --- Arrange ---
-	dbConn := setupTestDB(t, "testdata/schema.sql") // テストDBとスキーマを準備
+	dbConn := setupTestDB(t, "testdata/schema.sql") // Prepare test DB and schema
 
 	db := NewDB(dbConn)
 	handler := NewHandler(db)
@@ -67,10 +67,10 @@ func TestDescribeTables(t *testing.T) {
 				ProgressToken mcp.ProgressToken `json:"progressToken,omitempty"`
 			} `json:"_meta,omitempty"`
 		}{
-			// Name: "DescribeTables", // 必要に応じてツール名を設定
+			// Name: "DescribeTables", // Set tool name if necessary
 			Arguments: map[string]interface{}{
 				"dbName":     testDBName,
-				"tableNames": []interface{}{"users", "products", "order_items"}, // 複数テーブルを指定
+				"tableNames": []interface{}{"users", "products", "order_items"}, // Specify multiple tables
 			},
 		},
 	}

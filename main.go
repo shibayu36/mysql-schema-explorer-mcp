@@ -13,20 +13,20 @@ import (
 func main() {
 	dbConfig, err := loadDBConfig()
 	if err != nil {
-		log.Fatalf("設定の読み込みに失敗しました: %v", err)
+		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
 	sqlDB, err := connectDB(dbConfig)
 	if err != nil {
-		log.Fatalf("データベース接続に失敗しました: %v", err)
+		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer sqlDB.Close()
 
 	if err := sqlDB.Ping(); err != nil {
-		log.Fatalf("データベース接続確認に失敗しました: %v", err)
+		log.Fatalf("Failed to ping database: %v", err)
 	}
 
-	// DB操作層とハンドラーの初期化
+	// Initialize DB layer and handler
 	db := NewDB(sqlDB)
 	handler := NewHandler(db)
 
@@ -85,7 +85,7 @@ func loadDBConfig() (DBConfig, error) {
 
 	user := os.Getenv("DB_USER")
 	if user == "" {
-		return DBConfig{}, fmt.Errorf("DB_USER環境変数が設定されていません")
+		return DBConfig{}, fmt.Errorf("DB_USER environment variable is not set")
 	}
 
 	password := os.Getenv("DB_PASSWORD")
