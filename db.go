@@ -11,6 +11,7 @@ type DBConfig struct {
 	Port     string
 	User     string
 	Password string
+	DBName   string // Target database name (optional)
 }
 
 type TableSummary struct {

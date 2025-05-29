@@ -33,7 +33,7 @@ type DBConfig struct {
     Port     string
     User     string
     Password string
-    Database string // 新規追加: 対象DB名（オプション）
+    DBName   string // 新規追加: 対象DB名（オプション）
 }
 ```
 
@@ -108,7 +108,7 @@ func verifyDatabase(conn *sql.DB, dbName string) error {
 - 環境変数のモック化
 
 ## 実装手順
-1. DBConfig構造体にDatabaseフィールドを追加
+1. DBConfig構造体にDBNameフィールドを追加
 2. loadDBConfig関数でDB_NAME環境変数を読み込む
 3. connectDB関数でデータベース存在確認を追加
 4. Handler構造体にdbNameフィールドを追加
