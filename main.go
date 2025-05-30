@@ -10,6 +10,8 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
+const Version = "1.0.0"
+
 func main() {
 	dbConfig, err := loadDBConfig()
 	if err != nil {
@@ -32,7 +34,7 @@ func main() {
 
 	s := server.NewMCPServer(
 		"mysql-schema-mcp",
-		"1.0.0",
+		Version,
 	)
 
 	listTables := mcp.NewTool(
