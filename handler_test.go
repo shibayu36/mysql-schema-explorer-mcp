@@ -12,7 +12,7 @@ func TestListTables(t *testing.T) {
 	dbConn := setupTestDB(t, "testdata/schema.sql")
 
 	db := NewDB(dbConn)
-	handler := NewHandler(db)
+	handler := NewHandler(db, "")
 
 	ctx := t.Context()
 	req := mcp.CallToolRequest{
@@ -56,7 +56,7 @@ func TestDescribeTables(t *testing.T) {
 	dbConn := setupTestDB(t, "testdata/schema.sql") // Prepare test DB and schema
 
 	db := NewDB(dbConn)
-	handler := NewHandler(db)
+	handler := NewHandler(db, "")
 
 	ctx := t.Context()
 	req := mcp.CallToolRequest{

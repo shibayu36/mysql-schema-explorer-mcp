@@ -30,44 +30,69 @@ func main() {
 
 	// Initialize DB layer and handler
 	db := NewDB(sqlDB)
-	handler := NewHandler(db)
+	handler := NewHandler(db, dbConfig.DBName)
 
 	s := server.NewMCPServer(
 		"mysql-schema-mcp",
 		Version,
 	)
 
-	listTables := mcp.NewTool(
-		"list_tables",
-		mcp.WithDescription("Returns a list of table information in the specified MySQL database."),
-		mcp.WithString("dbName",
-			mcp.Required(),
-			mcp.Description("The name of the database to retrieve information from."),
-		),
-	)
+	// Configure tools based on DB_NAME environment variable
+	if dbConfig.DBName != "" {
+		// Database-specific mode
+		listTables := mcp.NewTool(
+			"list_tables",
+			mcp.WithDescription(fmt.Sprintf("Returns a list of table information in the MySQL database '%s'.", dbConfig.DBName)),
+		)
+		s.AddTool(listTables, handler.ListTables)
 
-	s.AddTool(listTables, handler.ListTables)
-
-	describeTables := mcp.NewTool(
-		"describe_tables",
-		mcp.WithDescription("Returns detailed information for the specified tables."),
-		mcp.WithString("dbName",
-			mcp.Required(),
-			mcp.Description("The name of the database to retrieve information from."),
-		),
-		mcp.WithArray(
-			"tableNames",
-			mcp.Items(
-				map[string]interface{}{
-					"type": "string",
-				},
+		describeTables := mcp.NewTool(
+			"describe_tables",
+			mcp.WithDescription(fmt.Sprintf("Returns detailed information for the specified tables in the MySQL database '%s'.", dbConfig.DBName)),
+			mcp.WithArray(
+				"tableNames",
+				mcp.Items(
+					map[string]interface{}{
+						"type": "string",
+					},
+				),
+				mcp.Required(),
+				mcp.Description("The names of the tables to retrieve detailed information for (multiple names can be specified)."),
 			),
-			mcp.Required(),
-			mcp.Description("The names of the tables to retrieve detailed information for (multiple names can be specified)."),
-		),
-	)
+		)
+		s.AddTool(describeTables, handler.DescribeTables)
+	} else {
+		// Generic mode (original behavior)
+		listTables := mcp.NewTool(
+			"list_tables",
+			mcp.WithDescription("Returns a list of table information in the specified MySQL database."),
+			mcp.WithString("dbName",
+				mcp.Required(),
+				mcp.Description("The name of the database to retrieve information from."),
+			),
+		)
+		s.AddTool(listTables, handler.ListTables)
 
-	s.AddTool(describeTables, handler.DescribeTables)
+		describeTables := mcp.NewTool(
+			"describe_tables",
+			mcp.WithDescription("Returns detailed information for the specified tables."),
+			mcp.WithString("dbName",
+				mcp.Required(),
+				mcp.Description("The name of the database to retrieve information from."),
+			),
+			mcp.WithArray(
+				"tableNames",
+				mcp.Items(
+					map[string]interface{}{
+						"type": "string",
+					},
+				),
+				mcp.Required(),
+				mcp.Description("The names of the tables to retrieve detailed information for (multiple names can be specified)."),
+			),
+		)
+		s.AddTool(describeTables, handler.DescribeTables)
+	}
 
 	if err := server.ServeStdio(s); err != nil {
 		fmt.Printf("Server error: %v\n", err)
@@ -91,11 +116,13 @@ func loadDBConfig() (DBConfig, error) {
 	}
 
 	password := os.Getenv("DB_PASSWORD")
+	dbName := os.Getenv("DB_NAME")
 
 	return DBConfig{
 		Host:     host,
 		Port:     port,
 		User:     user,
 		Password: password,
+		DBName:   dbName,
 	}, nil
 }

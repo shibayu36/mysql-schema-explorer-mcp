@@ -65,6 +65,14 @@ func connectDB(config DBConfig) (*sql.DB, error) {
 		return nil, err
 	}
 
+	// Verify database exists if specified
+	if config.DBName != "" {
+		if err := verifyDatabase(conn, config.DBName); err != nil {
+			conn.Close()
+			return nil, err
+		}
+	}
+
 	return conn, nil
 }
 
@@ -381,4 +389,18 @@ func (db *DB) FetchTableIndexes(ctx context.Context, dbName string, tableName st
 		return nil, err
 	}
 	return indexes, nil
+}
+
+// verifyDatabase checks if the specified database exists
+func verifyDatabase(conn *sql.DB, dbName string) error {
+	var exists int
+	query := "SELECT COUNT(*) FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?"
+	err := conn.QueryRow(query, dbName).Scan(&exists)
+	if err != nil {
+		return fmt.Errorf("failed to verify database: %v", err)
+	}
+	if exists == 0 {
+		return fmt.Errorf("database '%s' does not exist", dbName)
+	}
+	return nil
 }
