@@ -26,3 +26,4 @@ go.work
 mysql-schema-explorer-mcp
 
 /.cursor
+/.claude/settings.local.json
