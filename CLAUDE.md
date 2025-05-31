@@ -57,18 +57,3 @@ When implementing new tools:
 4. Format the output in view.go if needed
 
 Tools must handle errors gracefully and return meaningful error messages through the MCP protocol.
-
-## Makefile Preferences
-
-When writing Makefiles:
-- Place `.PHONY` declarations immediately before each target rather than grouping them at the top
-- Example:
-  ```makefile
-  .PHONY: fmt
-  fmt:
-  	go fmt ./...
-  
-  .PHONY: test
-  test:
-  	go test ./...
-  ```
