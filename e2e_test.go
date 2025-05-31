@@ -71,14 +71,6 @@ func initializeMCPServer(t *testing.T, server *mcpServer) {
 	// Send initialize request
 	initReq := jsonRPCRequest{
 		Method: "initialize",
-		Params: map[string]interface{}{
-			"protocolVersion": "0.1.0",
-			"capabilities":    map[string]interface{}{},
-			"clientInfo": map[string]interface{}{
-				"name":    "test-client",
-				"version": "1.0.0",
-			},
-		},
 	}
 	server.sendRequest(t, initReq)
 
