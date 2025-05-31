@@ -35,7 +35,7 @@ type mcpServer struct {
 	reader *bufio.Reader
 }
 
-func startMCPServer(t *testing.T, env []string) *mcpServer {
+func setupMCPServer(t *testing.T, env []string) *mcpServer {
 	cmd := exec.Command("go", "run", ".")
 	cmd.Env = append(os.Environ(), env...)
 	
@@ -61,9 +61,13 @@ func startMCPServer(t *testing.T, env []string) *mcpServer {
 		cmd.Wait()
 	})
 	
-	// Wait for server to be ready and initialize
+	// Wait for server to be ready
 	time.Sleep(100 * time.Millisecond)
 	
+	return server
+}
+
+func initializeMCPServer(t *testing.T, server *mcpServer) {
 	// Send initialize request
 	initReq := jsonRPCRequest{
 		JSONRPC: "2.0",
@@ -82,7 +86,7 @@ func startMCPServer(t *testing.T, env []string) *mcpServer {
 	
 	// Read initialize response
 	initResp := server.readResponse(t)
-	require.Empty(t, initResp.Error)
+	require.Empty(t, initResp.Error, "Initialize should succeed")
 	
 	// Send initialized notification
 	initializedReq := jsonRPCRequest{
@@ -90,8 +94,6 @@ func startMCPServer(t *testing.T, env []string) *mcpServer {
 		Method:  "notifications/initialized",
 	}
 	server.sendRequest(t, initializedReq)
-	
-	return server
 }
 
 func (s *mcpServer) sendRequest(t *testing.T, req jsonRPCRequest) {
@@ -129,7 +131,8 @@ func TestE2EListTables(t *testing.T) {
 		fmt.Sprintf("DB_PASSWORD=%s", config.Password),
 	}
 	
-	server := startMCPServer(t, env)
+	server := setupMCPServer(t, env)
+	initializeMCPServer(t, server)
 	
 	// Send list_tables request
 	req := jsonRPCRequest{
@@ -177,6 +180,108 @@ Format: Table Name - Table Comment [PK: Primary Key] [UK: Unique Key 1; Unique K
 - orders - Order header [PK: id] [FK: user_id -> users.id]
 - products - Product master [PK: product_code] [UK: (maker_code, internal_code)]
 - users - User information [PK: id] [UK: email; (tenant_id, employee_id); username]
+`
+	
+	assert.Equal(t, expectedText, text)
+}
+
+func TestE2EDescribeTables(t *testing.T) {
+	// Setup test database
+	config := createTestDBConfig(t)
+	_ = setupTestDB(t, "testdata/schema.sql")
+	
+	// Start MCP server with test DB configuration
+	env := []string{
+		fmt.Sprintf("DB_HOST=%s", config.Host),
+		fmt.Sprintf("DB_PORT=%s", config.Port),
+		fmt.Sprintf("DB_USER=%s", config.User),
+		fmt.Sprintf("DB_PASSWORD=%s", config.Password),
+	}
+	
+	server := setupMCPServer(t, env)
+	initializeMCPServer(t, server)
+	
+	// Send describe_tables request
+	req := jsonRPCRequest{
+		JSONRPC: "2.0",
+		ID:      2,
+		Method:  "tools/call",
+		Params: map[string]interface{}{
+			"name": "describe_tables",
+			"arguments": map[string]interface{}{
+				"dbName": testDBName,
+				"tableNames": []string{"users", "products", "order_items"},
+			},
+		},
+	}
+	
+	server.sendRequest(t, req)
+	
+	// Read and verify response
+	resp := server.readResponse(t)
+	
+	// Check no error
+	assert.Empty(t, resp.Error)
+	
+	// Parse result
+	var result map[string]interface{}
+	err := json.Unmarshal(resp.Result, &result)
+	require.NoError(t, err)
+	
+	// Verify content
+	content, ok := result["content"].([]interface{})
+	require.True(t, ok)
+	require.Len(t, content, 1)
+	
+	textContent := content[0].(map[string]interface{})
+	assert.Equal(t, "text", textContent["type"])
+	
+	text := textContent["text"].(string)
+	
+	expectedText := `# Table: users - User information
+
+## Columns
+- id: int NOT NULL [User system ID]
+- email: varchar(255) NOT NULL [Email address]
+- username: varchar(255) NOT NULL [Username]
+- tenant_id: int NOT NULL [Tenant ID]
+- employee_id: int NOT NULL [Employee ID]
+
+## Key Information
+[PK: id]
+[UK: email; (tenant_id, employee_id); username]
+
+---
+
+# Table: products - Product master
+
+## Columns
+- product_code: varchar(50) NOT NULL [Product code (Primary Key)]
+- maker_code: varchar(50) NOT NULL [Maker code]
+- internal_code: varchar(50) NOT NULL [Internal product code]
+- product_name: varchar(255) NULL [Product name]
+
+## Key Information
+[PK: product_code]
+[UK: (maker_code, internal_code)]
+[INDEX: (maker_code, product_name); product_name]
+
+---
+
+# Table: order_items - Order details
+
+## Columns
+- order_id: int NOT NULL [Order ID (FK)]
+- item_seq: int NOT NULL [Order item sequence number]
+- product_maker: varchar(50) NOT NULL [Product maker code (FK)]
+- product_internal_code: varchar(50) NOT NULL [Product internal code (FK)]
+- quantity: int NOT NULL [Quantity]
+
+## Key Information
+[PK: (order_id, item_seq)]
+[UK: (order_id, product_maker, product_internal_code)]
+[FK: order_id -> orders.id; (product_maker, product_internal_code) -> products.(maker_code, internal_code)]
+[INDEX: (product_maker, product_internal_code)]
 `
 	
 	assert.Equal(t, expectedText, text)
