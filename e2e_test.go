@@ -38,32 +38,32 @@ type mcpServer struct {
 func setupMCPServer(t *testing.T, env []string) *mcpServer {
 	cmd := exec.Command("go", "run", ".")
 	cmd.Env = append(os.Environ(), env...)
-	
+
 	stdin, err := cmd.StdinPipe()
 	require.NoError(t, err)
-	
+
 	stdout, err := cmd.StdoutPipe()
 	require.NoError(t, err)
-	
+
 	err = cmd.Start()
 	require.NoError(t, err)
-	
+
 	server := &mcpServer{
 		cmd:    cmd,
 		stdin:  stdin,
 		stdout: stdout,
 		reader: bufio.NewReader(stdout),
 	}
-	
+
 	t.Cleanup(func() {
 		stdin.Close()
 		cmd.Process.Kill()
 		cmd.Wait()
 	})
-	
+
 	// Wait for server to be ready
 	time.Sleep(100 * time.Millisecond)
-	
+
 	return server
 }
 
@@ -75,7 +75,7 @@ func initializeMCPServer(t *testing.T, server *mcpServer) {
 		Method:  "initialize",
 		Params: map[string]interface{}{
 			"protocolVersion": "0.1.0",
-			"capabilities": map[string]interface{}{},
+			"capabilities":    map[string]interface{}{},
 			"clientInfo": map[string]interface{}{
 				"name":    "test-client",
 				"version": "1.0.0",
@@ -83,11 +83,11 @@ func initializeMCPServer(t *testing.T, server *mcpServer) {
 		},
 	}
 	server.sendRequest(t, initReq)
-	
+
 	// Read initialize response
 	initResp := server.readResponse(t)
 	require.Empty(t, initResp.Error, "Initialize should succeed")
-	
+
 	// Send initialized notification
 	initializedReq := jsonRPCRequest{
 		JSONRPC: "2.0",
@@ -102,7 +102,7 @@ func (s *mcpServer) sendRequest(t *testing.T, req jsonRPCRequest) {
 	}
 	data, err := json.Marshal(req)
 	require.NoError(t, err)
-	
+
 	_, err = fmt.Fprintf(s.stdin, "%s\n", data)
 	require.NoError(t, err)
 }
@@ -110,11 +110,11 @@ func (s *mcpServer) sendRequest(t *testing.T, req jsonRPCRequest) {
 func (s *mcpServer) readResponse(t *testing.T) jsonRPCResponse {
 	line, err := s.reader.ReadBytes('\n')
 	require.NoError(t, err)
-	
+
 	var resp jsonRPCResponse
 	err = json.Unmarshal(line, &resp)
 	require.NoError(t, err)
-	
+
 	return resp
 }
 
@@ -122,7 +122,7 @@ func TestE2EListTables(t *testing.T) {
 	// Setup test database
 	config := createTestDBConfig(t)
 	_ = setupTestDB(t, "testdata/schema.sql")
-	
+
 	// Start MCP server with test DB configuration
 	env := []string{
 		fmt.Sprintf("DB_HOST=%s", config.Host),
@@ -130,10 +130,10 @@ func TestE2EListTables(t *testing.T) {
 		fmt.Sprintf("DB_USER=%s", config.User),
 		fmt.Sprintf("DB_PASSWORD=%s", config.Password),
 	}
-	
+
 	server := setupMCPServer(t, env)
 	initializeMCPServer(t, server)
-	
+
 	// Send list_tables request
 	req := jsonRPCRequest{
 		JSONRPC: "2.0",
@@ -146,31 +146,30 @@ func TestE2EListTables(t *testing.T) {
 			},
 		},
 	}
-	
+
 	server.sendRequest(t, req)
-	
+
 	// Read and verify response
 	resp := server.readResponse(t)
-	
+
 	// Check no error
 	assert.Empty(t, resp.Error)
-	
+
 	// Parse result
 	var result map[string]interface{}
 	err := json.Unmarshal(resp.Result, &result)
 	require.NoError(t, err)
-	
+
 	// Verify content
 	content, ok := result["content"].([]interface{})
 	require.True(t, ok)
 	require.Len(t, content, 1)
-	
+
 	textContent := content[0].(map[string]interface{})
 	assert.Equal(t, "text", textContent["type"])
-	
+
 	text := textContent["text"].(string)
-	
-	
+
 	expectedText := `Tables in database "test_mysql_schema_explorer_mcp" (Total: 4)
 Format: Table Name - Table Comment [PK: Primary Key] [UK: Unique Key 1; Unique Key 2...] [FK: Foreign Key -> Referenced Table.Column; ...]
 * Composite keys (keys composed of multiple columns) are grouped in parentheses: (col1, col2)
@@ -181,7 +180,7 @@ Format: Table Name - Table Comment [PK: Primary Key] [UK: Unique Key 1; Unique K
 - products - Product master [PK: product_code] [UK: (maker_code, internal_code)]
 - users - User information [PK: id] [UK: email; (tenant_id, employee_id); username]
 `
-	
+
 	assert.Equal(t, expectedText, text)
 }
 
@@ -189,7 +188,7 @@ func TestE2EDescribeTables(t *testing.T) {
 	// Setup test database
 	config := createTestDBConfig(t)
 	_ = setupTestDB(t, "testdata/schema.sql")
-	
+
 	// Start MCP server with test DB configuration
 	env := []string{
 		fmt.Sprintf("DB_HOST=%s", config.Host),
@@ -197,10 +196,10 @@ func TestE2EDescribeTables(t *testing.T) {
 		fmt.Sprintf("DB_USER=%s", config.User),
 		fmt.Sprintf("DB_PASSWORD=%s", config.Password),
 	}
-	
+
 	server := setupMCPServer(t, env)
 	initializeMCPServer(t, server)
-	
+
 	// Send describe_tables request
 	req := jsonRPCRequest{
 		JSONRPC: "2.0",
@@ -209,35 +208,35 @@ func TestE2EDescribeTables(t *testing.T) {
 		Params: map[string]interface{}{
 			"name": "describe_tables",
 			"arguments": map[string]interface{}{
-				"dbName": testDBName,
+				"dbName":     testDBName,
 				"tableNames": []string{"users", "products", "order_items"},
 			},
 		},
 	}
-	
+
 	server.sendRequest(t, req)
-	
+
 	// Read and verify response
 	resp := server.readResponse(t)
-	
+
 	// Check no error
 	assert.Empty(t, resp.Error)
-	
+
 	// Parse result
 	var result map[string]interface{}
 	err := json.Unmarshal(resp.Result, &result)
 	require.NoError(t, err)
-	
+
 	// Verify content
 	content, ok := result["content"].([]interface{})
 	require.True(t, ok)
 	require.Len(t, content, 1)
-	
+
 	textContent := content[0].(map[string]interface{})
 	assert.Equal(t, "text", textContent["type"])
-	
+
 	text := textContent["text"].(string)
-	
+
 	expectedText := `# Table: users - User information
 
 ## Columns
@@ -283,6 +282,6 @@ func TestE2EDescribeTables(t *testing.T) {
 [FK: order_id -> orders.id; (product_maker, product_internal_code) -> products.(maker_code, internal_code)]
 [INDEX: (product_maker, product_internal_code)]
 `
-	
+
 	assert.Equal(t, expectedText, text)
 }
