@@ -260,3 +260,52 @@ func TestE2EDescribeTables(t *testing.T) {
 
 	assert.Equal(t, expectedText, text)
 }
+
+func TestE2E_FixedDBMode(t *testing.T) {
+	config := createTestDBConfig(t)
+	_ = setupTestDB(t, "testdata/schema.sql")
+
+	// Setup with DB_NAME environment variable
+	env := []string{
+		fmt.Sprintf("DB_HOST=%s", config.Host),
+		fmt.Sprintf("DB_PORT=%s", config.Port),
+		fmt.Sprintf("DB_USER=%s", config.User),
+		fmt.Sprintf("DB_PASSWORD=%s", config.Password),
+		fmt.Sprintf("DB_NAME=%s", testDBName), // Fixed DB name
+	}
+
+	server := setupMCPServer(t, env)
+	initializeMCPServer(t, server)
+
+	t.Run("list_tables works without dbName in fixed mode", func(t *testing.T) {
+		// Send without dbName parameter
+		server.sendToolCallRequest(t, "list_tables", map[string]interface{}{})
+
+		resp := server.readResponse(t)
+		text := verifyTextResponse(t, resp)
+
+		// Should list tables from the fixed DB
+		assert.Contains(t, text, "Tables in database \"test_mysql_schema_explorer_mcp\" (Total: 4)")
+		assert.Contains(t, text, "users")
+		assert.Contains(t, text, "orders")
+		assert.Contains(t, text, "products")
+		assert.Contains(t, text, "order_items")
+	})
+
+	t.Run("describe_tables works without dbName in fixed mode", func(t *testing.T) {
+		// Send without dbName parameter
+		server.sendToolCallRequest(t, "describe_tables", map[string]interface{}{
+			"tableNames": []string{"users"},
+		})
+
+		resp := server.readResponse(t)
+		text := verifyTextResponse(t, resp)
+
+		// Should describe table from the fixed DB
+		assert.Contains(t, text, "# Table: users")
+		assert.Contains(t, text, "## Columns")
+		assert.Contains(t, text, "- id: int NOT NULL")
+		assert.Contains(t, text, "- email: varchar(255) NOT NULL")
+		assert.Contains(t, text, "- username: varchar(255) NOT NULL")
+	})
+}

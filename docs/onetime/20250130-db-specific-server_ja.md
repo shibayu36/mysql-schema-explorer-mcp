@@ -12,7 +12,8 @@ mysql-schema-explorer-mcpに、特定のデータベースのみを操作対象�
 
 #### 1. DB_NAME環境変数が設定されている場合（固定モード）
 - 指定されたデータベースのみを操作対象とする
-- ツール呼び出し時の`dbName`パラメータは無視される
+- **ツール定義から`dbName`パラメータが除外される**
+- LLMは`dbName`を指定する必要がなく、より簡潔な呼び出しが可能
 - セキュリティ向上：誤って他のデータベースにアクセスすることを防ぐ
 
 #### 2. DB_NAME環境変数が設定されていない場合（通常モード）
@@ -34,10 +35,60 @@ export DB_PASSWORD=mypassword
 mysql-schema-explorer-mcp
 ```
 
+### LLMからの使用例
+
+#### 固定モード時
+```json
+// list_tablesツールの定義にdbNameパラメータが含まれない
+{
+  "name": "list_tables",
+  "description": "Returns a list of table information in the MySQL database.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {}
+  }
+}
+
+// 呼び出し例
+{
+  "tool": "list_tables",
+  "arguments": {}  // dbNameの指定が不要
+}
+```
+
+#### 通常モード時
+```json
+// list_tablesツールの定義にdbNameパラメータが含まれる
+{
+  "name": "list_tables",
+  "description": "Returns a list of table information in the specified MySQL database.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "dbName": {
+        "type": "string",
+        "description": "The name of the database to retrieve information from."
+      }
+    },
+    "required": ["dbName"]
+  }
+}
+
+// 呼び出し例
+{
+  "tool": "list_tables",
+  "arguments": {
+    "dbName": "myapp_production"
+  }
+}
+```
+
 ## コード設計
 
 ### 1. アーキテクチャ方針
-Handler構造体に固定DB名を持たせる設計を採用する。これにより、Handlerが固定モードかどうかを判断し、適切なDB名を使用できる。
+- Handler構造体に固定DB名を持たせる
+- **固定モードではツール定義時に`dbName`パラメータを含めない**
+- 動的にツール定義を切り替える仕組みを実装
 
 ```go
 type Handler struct {
@@ -50,8 +101,34 @@ type Handler struct {
 
 #### main.go
 - `DB_NAME`環境変数を読み込む
-- `NewHandler(db, fixedDBName)`でHandlerを初期化
-- ツール定義は変更せず、後方互換性を維持
+- 固定モードか通常モードかに応じて、異なるツール定義を作成
+- 固定モード時：`dbName`パラメータなしのツール定義
+- 通常モード時：`dbName`パラメータありのツール定義
+
+```go
+fixedDBName := os.Getenv("DB_NAME")
+handler := NewHandler(db, fixedDBName)
+
+if fixedDBName != "" {
+    // 固定モード：dbNameパラメータなし
+    listTables := mcp.NewTool(
+        "list_tables",
+        mcp.WithDescription("Returns a list of table information in the MySQL database."),
+    )
+    s.AddTool(listTables, handler.ListTables)
+} else {
+    // 通常モード：dbNameパラメータあり
+    listTables := mcp.NewTool(
+        "list_tables",
+        mcp.WithDescription("Returns a list of table information in the specified MySQL database."),
+        mcp.WithString("dbName",
+            mcp.Required(),
+            mcp.Description("The name of the database to retrieve information from."),
+        ),
+    )
+    s.AddTool(listTables, handler.ListTables)
+}
+```
 
 #### handler.go
 - コンストラクタを修正：`NewHandler(db *DB, fixedDBName string) *Handler`
@@ -81,7 +158,7 @@ type Handler struct {
 
 #### 単体テスト（handler_test.go）
 - 固定モード時のテストケース
-  - DB_NAMEが設定されている場合、リクエストパラメータを無視することを確認
+  - DB_NAMEが設定されている場合、dbNameパラメータなしでも動作することを確認
   - 正しいデータベースにアクセスすることを確認
 - 通常モード時のテストケース
   - DB_NAMEが設定されていない場合、リクエストパラメータが必須であることを確認
@@ -89,14 +166,13 @@ type Handler struct {
 
 #### E2Eテスト（e2e_test.go）
 - 実際のMCPプロトコルで固定モードが動作することを確認
-- 環境変数の設定/未設定で動作が切り替わることを確認
+- 固定モード時にツール定義に`dbName`パラメータが含まれないことを確認
+- 通常モード時にツール定義に`dbName`パラメータが含まれることを確認
 
 ## 実装タスク
-1. main.goでDB_NAME環境変数を読み込み、Handlerに渡す実装
+1. main.goでDB_NAME環境変数を読み込み、モードに応じて異なるツール定義を作成
 2. handler.goにfixedDBNameフィールドを追加し、固定モード対応
-3. handler_test.goに固定モードのテストケースを追加
-4. e2e_test.goに固定モードのE2Eテストを追加
-5. README.mdとCLAUDE.mdに固定モードの説明を追加
+3. e2e_test.goに固定モードのE2Eテストを追加（ツール定義の違いも確認）
 
 ## 今後の拡張可能性
 - 複数のデータベースをカンマ区切りで指定できるようにする

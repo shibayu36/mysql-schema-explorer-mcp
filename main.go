@@ -30,7 +30,8 @@ func main() {
 
 	// Initialize DB layer and handler
 	db := NewDB(sqlDB)
-	handler := NewHandler(db)
+	fixedDBName := os.Getenv("DB_NAME")
+	handler := NewHandler(db, fixedDBName)
 
 	s := server.NewMCPServer(
 		"mysql-schema-mcp",
