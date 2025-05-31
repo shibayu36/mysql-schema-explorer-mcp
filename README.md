@@ -10,12 +10,12 @@ https://github.com/user-attachments/assets/0cecef84-cd70-4f84-95cb-01c6ec7c9ac7
 - List Tables (`list_tables`)
   - Lists all table information in the specified database. Includes table name, comment, primary key, unique key, and foreign key information.
   - Parameters
-    - `dbName`: The name of the database to retrieve information from.
+    - `dbName`: The name of the database to retrieve information from (not required when DB_NAME environment variable is set)
 - Describe Tables (`describe_tables`)
   - Displays detailed information for specific tables in the specified database. Provides formatted information such as column definitions, key constraints, and indexes.
   - Parameters
-    - `dbName`: The name of the database to retrieve information from.
-    - `tableNames`: An array of table names to retrieve detailed information for.
+    - `dbName`: The name of the database to retrieve information from (not required when DB_NAME environment variable is set)
+    - `tableNames`: An array of table names to retrieve detailed information for
 
 ## Quick Start
 1. Install the command
@@ -45,3 +45,26 @@ https://github.com/user-attachments/assets/0cecef84-cd70-4f84-95cb-01c6ec7c9ac7
 3. Execute SQL generation using the agent
 
     Example: Using the structure of the ecshop database, list the names of the 3 most recently ordered products by the user shibayu36.
+
+## Usage
+
+### Fixing to a Specific Database
+
+When accessing only one database, you can set the `DB_NAME` environment variable to avoid specifying the database name each time.
+
+```json
+{
+  "mcpServers": {
+    "mysql-schema-explorer-mcp": {
+      "command": "/path/to/mysql-schema-explorer-mcp",
+      "env": {
+        "DB_HOST": "127.0.0.1",
+        "DB_PORT": "3306",
+        "DB_USER": "root",
+        "DB_PASSWORD": "root",
+        "DB_NAME": "ecshop"
+      },
+    }
+  }
+}
+```
