@@ -10,7 +10,7 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-const Version = "1.0.0"
+const Version = "1.1.0"
 
 func main() {
 	dbConfig, err := loadDBConfig()
