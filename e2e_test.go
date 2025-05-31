@@ -15,17 +15,15 @@ import (
 )
 
 type jsonRPCRequest struct {
-	JSONRPC string                 `json:"jsonrpc"`
-	ID      interface{}            `json:"id"`
-	Method  string                 `json:"method"`
-	Params  map[string]interface{} `json:"params,omitempty"`
+	ID     interface{}            `json:"id,omitempty"`
+	Method string                 `json:"method"`
+	Params map[string]interface{} `json:"params,omitempty"`
 }
 
 type jsonRPCResponse struct {
-	JSONRPC string                 `json:"jsonrpc"`
-	ID      interface{}            `json:"id"`
-	Result  json.RawMessage        `json:"result,omitempty"`
-	Error   map[string]interface{} `json:"error,omitempty"`
+	ID     interface{}            `json:"id"`
+	Result json.RawMessage        `json:"result,omitempty"`
+	Error  map[string]interface{} `json:"error,omitempty"`
 }
 
 type mcpServer struct {
@@ -33,6 +31,7 @@ type mcpServer struct {
 	stdin  io.WriteCloser
 	stdout io.ReadCloser
 	reader *bufio.Reader
+	nextID int
 }
 
 func setupMCPServer(t *testing.T, env []string) *mcpServer {
@@ -53,6 +52,7 @@ func setupMCPServer(t *testing.T, env []string) *mcpServer {
 		stdin:  stdin,
 		stdout: stdout,
 		reader: bufio.NewReader(stdout),
+		nextID: 1,
 	}
 
 	t.Cleanup(func() {
@@ -70,9 +70,7 @@ func setupMCPServer(t *testing.T, env []string) *mcpServer {
 func initializeMCPServer(t *testing.T, server *mcpServer) {
 	// Send initialize request
 	initReq := jsonRPCRequest{
-		JSONRPC: "2.0",
-		ID:      1,
-		Method:  "initialize",
+		Method: "initialize",
 		Params: map[string]interface{}{
 			"protocolVersion": "0.1.0",
 			"capabilities":    map[string]interface{}{},
@@ -90,17 +88,31 @@ func initializeMCPServer(t *testing.T, server *mcpServer) {
 
 	// Send initialized notification
 	initializedReq := jsonRPCRequest{
-		JSONRPC: "2.0",
-		Method:  "notifications/initialized",
+		Method: "notifications/initialized",
 	}
 	server.sendRequest(t, initializedReq)
 }
 
 func (s *mcpServer) sendRequest(t *testing.T, req jsonRPCRequest) {
-	if req.JSONRPC == "" {
-		req.JSONRPC = "2.0"
+	// Auto-increment ID for requests (except notifications)
+	if req.Method != "notifications/initialized" && req.ID == nil {
+		req.ID = s.nextID
+		s.nextID++
 	}
-	data, err := json.Marshal(req)
+
+	// Convert to the actual JSON-RPC format with jsonrpc field
+	fullReq := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  req.Method,
+	}
+	if req.ID != nil {
+		fullReq["id"] = req.ID
+	}
+	if req.Params != nil {
+		fullReq["params"] = req.Params
+	}
+
+	data, err := json.Marshal(fullReq)
 	require.NoError(t, err)
 
 	_, err = fmt.Fprintf(s.stdin, "%s\n", data)
@@ -138,9 +150,7 @@ func setupE2ETest(t *testing.T) *mcpServer {
 // Helper to send tools/call request
 func (s *mcpServer) sendToolCallRequest(t *testing.T, toolName string, arguments map[string]interface{}) {
 	req := jsonRPCRequest{
-		JSONRPC: "2.0",
-		ID:      2,
-		Method:  "tools/call",
+		Method: "tools/call",
 		Params: map[string]interface{}{
 			"name":      toolName,
 			"arguments": arguments,
