@@ -10,11 +10,11 @@ https://github.com/user-attachments/assets/f81b2513-31bd-4a60-9b54-45f76323d112
 - テーブル一覧の取得 (`list_tables`)
   - 指定したデータベース内のすべてのテーブル情報を一覧表示します。テーブル名、コメント、主キー、一意キー、外部キー情報などが含まれます。
   - パラメータ
-    - `dbName`: 情報を取得するデータベース名
+    - `dbName`: 情報を取得するデータベース名（DB_NAME環境変数を設定した場合は不要）
 - テーブル詳細の取得 (`describe_tables`)
   - 指定したデータベースの特定テーブルの詳細情報を表示します。カラム定義、キー制約、インデックスなどの情報を整形して提供します。
   - パラメータ
-    - `dbName`: 情報を取得するデータベース名
+    - `dbName`: 情報を取得するデータベース名（DB_NAME環境変数を設定した場合は不要）
     - `tableNames`: 詳細情報を取得するテーブル名の配列
 
 ## クイックスタート
@@ -45,3 +45,26 @@ https://github.com/user-attachments/assets/f81b2513-31bd-4a60-9b54-45f76323d112
 3. エージェントを利用してSQL生成を実行
 
     例: ecshopデータベースの構造を使って、ユーザー名がshibayu36が最近注文した商品名3つを出して
+
+## 使い方
+
+### 特定のデータベースに固定する
+
+アクセスするデータベースが1つだけの場合、`DB_NAME`環境変数を設定することで、毎回データベース名を指定する必要がなくなります。
+
+```json
+{
+  "mcpServers": {
+    "mysql-schema-explorer-mcp": {
+      "command": "/path/to/mysql-schema-explorer-mcp",
+      "env": {
+        "DB_HOST": "127.0.0.1",
+        "DB_PORT": "3306",
+        "DB_USER": "root",
+        "DB_PASSWORD": "root",
+        "DB_NAME": "ecshop"
+      },
+    }
+  }
+}
+```

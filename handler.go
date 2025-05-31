@@ -11,23 +11,40 @@ import (
 
 // Handler struct implements the MCP handler
 type Handler struct {
-	db *DB
+	db          *DB
+	fixedDBName string
 }
 
-func NewHandler(db *DB) *Handler {
-	return &Handler{db: db}
+func NewHandler(db *DB, fixedDBName string) *Handler {
+	return &Handler{db: db, fixedDBName: fixedDBName}
 }
 
-// ListTables returns summary information for all tables
-func (h *Handler) ListTables(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+// getDatabaseName extracts the database name from the request or returns the fixed DB name
+func (h *Handler) getDatabaseName(request mcp.CallToolRequest) (string, error) {
+	// Use fixed DB name if set
+	if h.fixedDBName != "" {
+		return h.fixedDBName, nil
+	}
+
+	// Otherwise get from request
 	dbNameRaw, ok := request.Params.Arguments["dbName"]
 	if !ok {
-		return mcp.NewToolResultError("Database name is not specified"), nil
+		return "", fmt.Errorf("database name is not specified")
 	}
 
 	dbName, ok := dbNameRaw.(string)
 	if !ok || dbName == "" {
-		return mcp.NewToolResultError("Database name is not specified correctly"), nil
+		return "", fmt.Errorf("database name is not specified correctly")
+	}
+
+	return dbName, nil
+}
+
+// ListTables returns summary information for all tables
+func (h *Handler) ListTables(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	dbName, err := h.getDatabaseName(request)
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
 	}
 
 	// Get table information
@@ -62,15 +79,9 @@ func (h *Handler) ListTables(ctx context.Context, request mcp.CallToolRequest) (
 
 // DescribeTables is a handler method that returns detailed information for the specified tables
 func (h *Handler) DescribeTables(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	// Get dbName parameter
-	dbNameRaw, ok := request.Params.Arguments["dbName"]
-	if !ok {
-		return mcp.NewToolResultError("Database name is not specified"), nil
-	}
-
-	dbName, ok := dbNameRaw.(string)
-	if !ok || dbName == "" {
-		return mcp.NewToolResultError("Database name is not specified correctly"), nil
+	dbName, err := h.getDatabaseName(request)
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
 	}
 
 	// Create list of table names

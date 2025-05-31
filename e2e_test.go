@@ -260,3 +260,143 @@ func TestE2EDescribeTables(t *testing.T) {
 
 	assert.Equal(t, expectedText, text)
 }
+
+func TestE2E_FixedDBMode(t *testing.T) {
+	config := createTestDBConfig(t)
+	_ = setupTestDB(t, "testdata/schema.sql")
+
+	// Setup with DB_NAME environment variable
+	env := []string{
+		fmt.Sprintf("DB_HOST=%s", config.Host),
+		fmt.Sprintf("DB_PORT=%s", config.Port),
+		fmt.Sprintf("DB_USER=%s", config.User),
+		fmt.Sprintf("DB_PASSWORD=%s", config.Password),
+		fmt.Sprintf("DB_NAME=%s", testDBName), // Fixed DB name
+	}
+
+	server := setupMCPServer(t, env)
+	initializeMCPServer(t, server)
+
+	t.Run("list_tables works without dbName in fixed mode", func(t *testing.T) {
+		// Send without dbName parameter
+		server.sendToolCallRequest(t, "list_tables", map[string]interface{}{})
+
+		resp := server.readResponse(t)
+		text := verifyTextResponse(t, resp)
+
+		// Should list tables from the fixed DB
+		assert.Contains(t, text, "Tables in database \"test_mysql_schema_explorer_mcp\" (Total: 4)")
+		assert.Contains(t, text, "users")
+		assert.Contains(t, text, "orders")
+		assert.Contains(t, text, "products")
+		assert.Contains(t, text, "order_items")
+	})
+
+	t.Run("describe_tables works without dbName in fixed mode", func(t *testing.T) {
+		// Send without dbName parameter
+		server.sendToolCallRequest(t, "describe_tables", map[string]interface{}{
+			"tableNames": []string{"users"},
+		})
+
+		resp := server.readResponse(t)
+		text := verifyTextResponse(t, resp)
+
+		// Should describe table from the fixed DB
+		assert.Contains(t, text, "# Table: users")
+		assert.Contains(t, text, "## Columns")
+		assert.Contains(t, text, "- id: int NOT NULL")
+		assert.Contains(t, text, "- email: varchar(255) NOT NULL")
+		assert.Contains(t, text, "- username: varchar(255) NOT NULL")
+	})
+
+}
+
+func TestE2E_ToolDefinitions(t *testing.T) {
+	findTool := func(tools []interface{}, name string) map[string]interface{} {
+		for _, tool := range tools {
+			toolMap := tool.(map[string]interface{})
+			if toolMap["name"] == name {
+				return toolMap
+			}
+		}
+		return nil
+	}
+
+	getToolProperties := func(tool map[string]interface{}) map[string]interface{} {
+		inputSchema, ok := tool["inputSchema"]
+		if !ok || inputSchema == nil {
+			return map[string]interface{}{}
+		}
+
+		properties, ok := inputSchema.(map[string]interface{})["properties"]
+		if !ok || properties == nil {
+			return map[string]interface{}{}
+		}
+
+		return properties.(map[string]interface{})
+	}
+
+	t.Run("normal mode has dbName parameter", func(t *testing.T) {
+		server := setupE2ETest(t) // Normal mode (no DB_NAME)
+
+		req := jsonRPCRequest{Method: "tools/list"}
+		server.sendRequest(t, req)
+		resp := server.readResponse(t)
+
+		var result map[string]interface{}
+		json.Unmarshal(resp.Result, &result)
+		tools := result["tools"].([]interface{})
+
+		assert.Len(t, tools, 2)
+
+		// Check list_tables has dbName parameter
+		listTables := findTool(tools, "list_tables")
+		properties := getToolProperties(listTables)
+		_, hasDBName := properties["dbName"]
+		assert.True(t, hasDBName, "list_tables should have dbName in normal mode")
+
+		// Check describe_tables has dbName parameter
+		describeTables := findTool(tools, "describe_tables")
+		properties = getToolProperties(describeTables)
+		_, hasDBName = properties["dbName"]
+		assert.True(t, hasDBName, "describe_tables should have dbName in normal mode")
+	})
+
+	t.Run("fixed mode has no dbName parameter", func(t *testing.T) {
+		config := createTestDBConfig(t)
+		_ = setupTestDB(t, "testdata/schema.sql")
+
+		env := []string{
+			fmt.Sprintf("DB_HOST=%s", config.Host),
+			fmt.Sprintf("DB_PORT=%s", config.Port),
+			fmt.Sprintf("DB_USER=%s", config.User),
+			fmt.Sprintf("DB_PASSWORD=%s", config.Password),
+			fmt.Sprintf("DB_NAME=%s", testDBName),
+		}
+
+		server := setupMCPServer(t, env)
+		initializeMCPServer(t, server)
+
+		req := jsonRPCRequest{Method: "tools/list"}
+		server.sendRequest(t, req)
+		resp := server.readResponse(t)
+
+		var result map[string]interface{}
+		json.Unmarshal(resp.Result, &result)
+		tools := result["tools"].([]interface{})
+
+		assert.Len(t, tools, 2)
+
+		// Check list_tables has no dbName parameter
+		listTables := findTool(tools, "list_tables")
+		properties := getToolProperties(listTables)
+		_, hasDBName := properties["dbName"]
+		assert.False(t, hasDBName, "list_tables should not have dbName in fixed mode")
+
+		// Check describe_tables has no dbName parameter
+		describeTables := findTool(tools, "describe_tables")
+		properties = getToolProperties(describeTables)
+		_, hasDBName = properties["dbName"]
+		assert.False(t, hasDBName, "describe_tables should not have dbName in fixed mode")
+	})
+}

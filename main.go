@@ -30,44 +30,53 @@ func main() {
 
 	// Initialize DB layer and handler
 	db := NewDB(sqlDB)
-	handler := NewHandler(db)
+	fixedDBName := os.Getenv("DB_NAME")
+	handler := NewHandler(db, fixedDBName)
 
 	s := server.NewMCPServer(
 		"mysql-schema-mcp",
 		Version,
 	)
 
-	listTables := mcp.NewTool(
-		"list_tables",
-		mcp.WithDescription("Returns a list of table information in the specified MySQL database."),
-		mcp.WithString("dbName",
+	// Build list_tables tool options
+	listTablesOpts := []mcp.ToolOption{
+		mcp.WithDescription("Returns a list of table information in the MySQL database."),
+	}
+	if fixedDBName == "" {
+		listTablesOpts = append(listTablesOpts, mcp.WithString("dbName",
 			mcp.Required(),
 			mcp.Description("The name of the database to retrieve information from."),
-		),
+		))
+	}
+	s.AddTool(
+		mcp.NewTool("list_tables", listTablesOpts...),
+		handler.ListTables,
 	)
 
-	s.AddTool(listTables, handler.ListTables)
-
-	describeTables := mcp.NewTool(
-		"describe_tables",
+	// Build describe_tables tool options
+	describeTablesOpts := []mcp.ToolOption{
 		mcp.WithDescription("Returns detailed information for the specified tables."),
-		mcp.WithString("dbName",
+	}
+	if fixedDBName == "" {
+		describeTablesOpts = append(describeTablesOpts, mcp.WithString("dbName",
 			mcp.Required(),
 			mcp.Description("The name of the database to retrieve information from."),
+		))
+	}
+	describeTablesOpts = append(describeTablesOpts, mcp.WithArray(
+		"tableNames",
+		mcp.Items(
+			map[string]interface{}{
+				"type": "string",
+			},
 		),
-		mcp.WithArray(
-			"tableNames",
-			mcp.Items(
-				map[string]interface{}{
-					"type": "string",
-				},
-			),
-			mcp.Required(),
-			mcp.Description("The names of the tables to retrieve detailed information for (multiple names can be specified)."),
-		),
+		mcp.Required(),
+		mcp.Description("The names of the tables to retrieve detailed information for (multiple names can be specified)."),
+	))
+	s.AddTool(
+		mcp.NewTool("describe_tables", describeTablesOpts...),
+		handler.DescribeTables,
 	)
-
-	s.AddTool(describeTables, handler.DescribeTables)
 
 	if err := server.ServeStdio(s); err != nil {
 		fmt.Printf("Server error: %v\n", err)
