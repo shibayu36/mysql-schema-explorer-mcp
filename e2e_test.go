@@ -118,12 +118,11 @@ func (s *mcpServer) readResponse(t *testing.T) jsonRPCResponse {
 	return resp
 }
 
-func TestE2EListTables(t *testing.T) {
-	// Setup test database
+// Common test setup helper
+func setupE2ETest(t *testing.T) *mcpServer {
 	config := createTestDBConfig(t)
 	_ = setupTestDB(t, "testdata/schema.sql")
 
-	// Start MCP server with test DB configuration
 	env := []string{
 		fmt.Sprintf("DB_HOST=%s", config.Host),
 		fmt.Sprintf("DB_PORT=%s", config.Port),
@@ -133,25 +132,25 @@ func TestE2EListTables(t *testing.T) {
 
 	server := setupMCPServer(t, env)
 	initializeMCPServer(t, server)
+	return server
+}
 
-	// Send list_tables request
+// Helper to send tools/call request
+func (s *mcpServer) sendToolCallRequest(t *testing.T, toolName string, arguments map[string]interface{}) {
 	req := jsonRPCRequest{
 		JSONRPC: "2.0",
 		ID:      2,
 		Method:  "tools/call",
 		Params: map[string]interface{}{
-			"name": "list_tables",
-			"arguments": map[string]interface{}{
-				"dbName": testDBName,
-			},
+			"name":      toolName,
+			"arguments": arguments,
 		},
 	}
+	s.sendRequest(t, req)
+}
 
-	server.sendRequest(t, req)
-
-	// Read and verify response
-	resp := server.readResponse(t)
-
+// Helper to verify response and extract text content
+func verifyTextResponse(t *testing.T, resp jsonRPCResponse) string {
 	// Check no error
 	assert.Empty(t, resp.Error)
 
@@ -169,6 +168,20 @@ func TestE2EListTables(t *testing.T) {
 	assert.Equal(t, "text", textContent["type"])
 
 	text := textContent["text"].(string)
+	return text
+}
+
+func TestE2EListTables(t *testing.T) {
+	server := setupE2ETest(t)
+
+	// Send list_tables request
+	server.sendToolCallRequest(t, "list_tables", map[string]interface{}{
+		"dbName": testDBName,
+	})
+
+	// Read and verify response
+	resp := server.readResponse(t)
+	text := verifyTextResponse(t, resp)
 
 	expectedText := `Tables in database "test_mysql_schema_explorer_mcp" (Total: 4)
 Format: Table Name - Table Comment [PK: Primary Key] [UK: Unique Key 1; Unique Key 2...] [FK: Foreign Key -> Referenced Table.Column; ...]
@@ -185,57 +198,17 @@ Format: Table Name - Table Comment [PK: Primary Key] [UK: Unique Key 1; Unique K
 }
 
 func TestE2EDescribeTables(t *testing.T) {
-	// Setup test database
-	config := createTestDBConfig(t)
-	_ = setupTestDB(t, "testdata/schema.sql")
-
-	// Start MCP server with test DB configuration
-	env := []string{
-		fmt.Sprintf("DB_HOST=%s", config.Host),
-		fmt.Sprintf("DB_PORT=%s", config.Port),
-		fmt.Sprintf("DB_USER=%s", config.User),
-		fmt.Sprintf("DB_PASSWORD=%s", config.Password),
-	}
-
-	server := setupMCPServer(t, env)
-	initializeMCPServer(t, server)
+	server := setupE2ETest(t)
 
 	// Send describe_tables request
-	req := jsonRPCRequest{
-		JSONRPC: "2.0",
-		ID:      2,
-		Method:  "tools/call",
-		Params: map[string]interface{}{
-			"name": "describe_tables",
-			"arguments": map[string]interface{}{
-				"dbName":     testDBName,
-				"tableNames": []string{"users", "products", "order_items"},
-			},
-		},
-	}
-
-	server.sendRequest(t, req)
+	server.sendToolCallRequest(t, "describe_tables", map[string]interface{}{
+		"dbName":     testDBName,
+		"tableNames": []string{"users", "products", "order_items"},
+	})
 
 	// Read and verify response
 	resp := server.readResponse(t)
-
-	// Check no error
-	assert.Empty(t, resp.Error)
-
-	// Parse result
-	var result map[string]interface{}
-	err := json.Unmarshal(resp.Result, &result)
-	require.NoError(t, err)
-
-	// Verify content
-	content, ok := result["content"].([]interface{})
-	require.True(t, ok)
-	require.Len(t, content, 1)
-
-	textContent := content[0].(map[string]interface{})
-	assert.Equal(t, "text", textContent["type"])
-
-	text := textContent["text"].(string)
+	text := verifyTextResponse(t, resp)
 
 	expectedText := `# Table: users - User information
 
