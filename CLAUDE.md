@@ -48,6 +48,17 @@ This is a Model Context Protocol (MCP) server that provides MySQL schema informa
 
 The server uses the mcp-go library (github.com/mark3labs/mcp-go) to implement the MCP protocol and communicates via stdio.
 
+## Code Guidelines
+
+### Appropriate Use of Comments
+**⚠️ Important**: Keep comments to the absolute minimum. Do not comment on things that are immediately obvious from reading the code.
+
+**Limited cases where comments should be written**:
+1. **Public API documentation**: For documenting public methods and interfaces
+2. **Background context**: When there's important background information not evident from the code
+3. **Complex logic explanation**: When complex code requires explanation to understand the intended behavior
+4. **Large code section separation**: For 100+ line code blocks where sectioning with explanatory comments is beneficial
+
 ## MCP Tool Implementation
 
 When implementing new tools:
