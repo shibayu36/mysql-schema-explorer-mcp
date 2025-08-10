@@ -18,9 +18,72 @@ https://github.com/user-attachments/assets/0cecef84-cd70-4f84-95cb-01c6ec7c9ac7
     - `tableNames`: An array of table names to retrieve detailed information for
 
 ## Quick Start
+
+1. Configure mcp.json
+
+    ```json
+    {
+      "mcpServers": {
+        "mysql-schema-explorer-mcp": {
+          "command": "docker",
+          "args": ["run", "-i", "--rm", "--network=host",
+            "-e", "DB_HOST=127.0.0.1",
+            "-e", "DB_PORT=3306",
+            "-e", "DB_USER=root",
+            "-e", "DB_PASSWORD=your_password",
+            "ghcr.io/shibayu36/mysql-schema-explorer-mcp:latest"
+          ]
+        }
+      }
+    }
+    ```
+
+    If using Claude Code:
+
+    ```bash
+    claude mcp add mysql-schema-explorer-mcp -- docker run -i --rm --network=host \
+      -e DB_HOST=127.0.0.1 \
+      -e DB_USER=root \
+      -e DB_PASSWORD=your_password \
+      -e DB_PORT=3306 \
+      ghcr.io/shibayu36/mysql-schema-explorer-mcp:latest
+    ```
+
+2. Execute SQL generation using the agent
+
+    Example: Using the structure of the ecshop database, list the names of the 3 most recently ordered products by the user shibayu36.
+
+## Usage
+
+### Fixing to a Specific Database
+
+When accessing only one database, you can set the `DB_NAME` environment variable to avoid specifying the database name each time.
+
+```json
+{
+  "mcpServers": {
+    "mysql-schema-explorer-mcp": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "--network=host",
+        "-e", "DB_HOST=127.0.0.1",
+        "-e", "DB_PORT=3306",
+        "-e", "DB_USER=root",
+        "-e", "DB_PASSWORD=your_password",
+        "-e", "DB_NAME=ecshop",
+        "ghcr.io/shibayu36/mysql-schema-explorer-mcp:latest"
+      ]
+    }
+  }
+}
+```
+
+### Using Binary Instead of Docker
+
+If you have a Go development environment, you can also install and use the binary directly.
+
 1. Install the command
 
-    ```
+    ```bash
     go install github.com/shibayu36/mysql-schema-explorer-mcp@latest
     ```
 
@@ -35,36 +98,9 @@ https://github.com/user-attachments/assets/0cecef84-cd70-4f84-95cb-01c6ec7c9ac7
             "DB_HOST": "127.0.0.1",
             "DB_PORT": "3306",
             "DB_USER": "root",
-            "DB_PASSWORD": "root"
-          },
+            "DB_PASSWORD": "your_password"
+          }
         }
       }
     }
     ```
-
-3. Execute SQL generation using the agent
-
-    Example: Using the structure of the ecshop database, list the names of the 3 most recently ordered products by the user shibayu36.
-
-## Usage
-
-### Fixing to a Specific Database
-
-When accessing only one database, you can set the `DB_NAME` environment variable to avoid specifying the database name each time.
-
-```json
-{
-  "mcpServers": {
-    "mysql-schema-explorer-mcp": {
-      "command": "/path/to/mysql-schema-explorer-mcp",
-      "env": {
-        "DB_HOST": "127.0.0.1",
-        "DB_PORT": "3306",
-        "DB_USER": "root",
-        "DB_PASSWORD": "root",
-        "DB_NAME": "ecshop"
-      },
-    }
-  }
-}
-```
