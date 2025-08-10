@@ -50,6 +50,10 @@ The server uses the mcp-go library (github.com/mark3labs/mcp-go) to implement th
 
 ## Code Guidelines
 
+### Language
+- Use English for all comments and documentation.
+- Use Japanese for all comments and documentation when the code is written in Japanese.
+
 ### Appropriate Use of Comments
 **⚠️ Important**: Keep comments to the absolute minimum. Do not comment on things that are immediately obvious from reading the code.
 
