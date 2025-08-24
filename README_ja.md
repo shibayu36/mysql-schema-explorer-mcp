@@ -26,7 +26,7 @@ https://github.com/user-attachments/assets/f81b2513-31bd-4a60-9b54-45f76323d112
       "mcpServers": {
         "mysql-schema-explorer-mcp": {
           "command": "docker",
-          "args": ["run", "-i", "--rm", "--network=host",
+          "args": ["run", "-i", "--rm", "--pull", "always", "--network=host",
             "-e", "DB_HOST=127.0.0.1",
             "-e", "DB_PORT=3306",
             "-e", "DB_USER=root",
@@ -41,7 +41,7 @@ https://github.com/user-attachments/assets/f81b2513-31bd-4a60-9b54-45f76323d112
     Claude Codeを使用している場合:
 
     ```bash
-    claude mcp add mysql-schema-explorer-mcp -- docker run -i --rm --network=host \
+    claude mcp add mysql-schema-explorer-mcp -- docker run -i --rm --pull always --network=host \
       -e DB_HOST=127.0.0.1 \
       -e DB_USER=root \
       -e DB_PASSWORD=your_password \

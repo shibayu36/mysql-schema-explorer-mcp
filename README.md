@@ -26,7 +26,7 @@ https://github.com/user-attachments/assets/0cecef84-cd70-4f84-95cb-01c6ec7c9ac7
       "mcpServers": {
         "mysql-schema-explorer-mcp": {
           "command": "docker",
-          "args": ["run", "-i", "--rm", "--network=host",
+          "args": ["run", "-i", "--rm", "--pull", "always", "--network=host",
             "-e", "DB_HOST=127.0.0.1",
             "-e", "DB_PORT=3306",
             "-e", "DB_USER=root",
@@ -41,7 +41,7 @@ https://github.com/user-attachments/assets/0cecef84-cd70-4f84-95cb-01c6ec7c9ac7
     If using Claude Code:
 
     ```bash
-    claude mcp add mysql-schema-explorer-mcp -- docker run -i --rm --network=host \
+    claude mcp add mysql-schema-explorer-mcp -- docker run -i --rm --pull always --network=host \
       -e DB_HOST=127.0.0.1 \
       -e DB_USER=root \
       -e DB_PASSWORD=your_password \
